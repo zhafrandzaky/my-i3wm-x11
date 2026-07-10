@@ -29,10 +29,22 @@ alias l='ls -CF'
 alias ..='cd ..'
 alias ...='cd ../..'
 
-alias update='yay -Syu'
-alias install='yay -S'
-alias remove='yay -Rns'
-alias cleanup='yay -Yc'
+if command -v yay > /dev/null; then
+    alias update='yay -Syu'
+    alias install='yay -S'
+    alias remove='yay -Rns'
+    alias cleanup='yay -Yc'
+elif command -v pacman > /dev/null; then
+    alias update='sudo pacman -Syu'
+    alias install='sudo pacman -S'
+    alias remove='sudo pacman -Rns'
+    alias cleanup='sudo pacman -Sc'
+elif command -v apt > /dev/null; then
+    alias update='sudo apt update && sudo apt full-upgrade'
+    alias install='sudo apt install'
+    alias remove='sudo apt remove --purge'
+    alias cleanup='sudo apt autoremove --purge && sudo apt clean'
+fi
 
 alias c='clear'
 alias q='exit'
@@ -40,10 +52,14 @@ alias grep='grep --color=auto'
 
 alias config='cd ~/.config/i3'
 alias conf-nvim='cd ~/.config/nvim'
-alias project='cd ~/arch-i3wm-x11'
+alias project='cd ~/my-i3wm-x11'
 
 if command -v bat > /dev/null; then
     alias cat='bat'
+elif command -v batcat > /dev/null; then
+    # Debian ships bat as batcat
+    alias cat='batcat'
+    alias bat='batcat'
 fi
 
 if command -v eza > /dev/null; then
@@ -84,10 +100,21 @@ if command -v starship > /dev/null; then
     eval "$(starship init zsh)"
 fi
 
-if [ -f /usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh ]; then
-    source /usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh
-fi
+# Plugin locations: Arch uses /usr/share/zsh/plugins/, Debian installs each plugin at top level
+for plugin_path in \
+    /usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh \
+    /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh; do
+    if [ -f "$plugin_path" ]; then
+        source "$plugin_path"
+        break
+    fi
+done
 
-if [ -f /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh ]; then
-    source /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
-fi
+for plugin_path in \
+    /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh \
+    /usr/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh; do
+    if [ -f "$plugin_path" ]; then
+        source "$plugin_path"
+        break
+    fi
+done

@@ -14,10 +14,32 @@ sleep 1
 
 notify-send -u critical -t 10000 "Welcome to Pro Dark :)" "Please select your default web browser to complete the setup."
 
-BROWSER=$(echo -e "firefox\nbrave\nchromium" | rofi -dmenu -p "Browser" -theme ~/.config/rofi/config.rasi)
+# Build the browser list from what is actually installed (names differ per distro,
+# e.g. firefox on Arch vs firefox-esr on Debian, brave-bin ships brave-browser.desktop)
+BROWSER_LIST=""
+for entry in "firefox:firefox.desktop" \
+             "firefox-esr:firefox-esr.desktop" \
+             "brave:brave-browser.desktop" \
+             "chromium:chromium.desktop"; do
+    name="${entry%%:*}"
+    desktop="${entry#*:}"
+    if [ -f "/usr/share/applications/$desktop" ] || [ -f "$HOME/.local/share/applications/$desktop" ]; then
+        BROWSER_LIST+="${name}\n"
+    fi
+done
+
+if [ -z "$BROWSER_LIST" ]; then
+    BROWSER_LIST="firefox\nbrave\nchromium\n"
+fi
+
+BROWSER=$(echo -e "${BROWSER_LIST%\\n}" | rofi -dmenu -p "Browser" -theme ~/.config/rofi/config.rasi)
 
 if [ -n "$BROWSER" ]; then
-    xdg-settings set default-web-browser "${BROWSER}.desktop"
+    case "$BROWSER" in
+        brave) DESKTOP_FILE="brave-browser.desktop" ;;
+        *)     DESKTOP_FILE="${BROWSER}.desktop" ;;
+    esac
+    xdg-settings set default-web-browser "$DESKTOP_FILE"
     notify-send "Setup Complete" "Default browser set to $BROWSER. Enjoy your new workspace!"
 fi
 

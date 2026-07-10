@@ -1,15 +1,17 @@
-# ARCH-I3WM-X11
+# MY-I3WM-X11
 
 ![Arch Linux](https://img.shields.io/badge/OS-Arch_Linux-33b7ff?style=for-the-badge&logo=archlinux&logoColor=white)
+![Debian](https://img.shields.io/badge/OS-Debian-A81D33?style=for-the-badge&logo=debian&logoColor=white)
 ![Window Manager](https://img.shields.io/badge/WM-i3wm-black?style=for-the-badge&logo=i3&logoColor=white)
 ![Shell](https://img.shields.io/badge/Shell-Zsh-black?style=for-the-badge&logo=zsh&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)
 
-A highly modular, robust, and fully automated dotfiles deployment for Arch Linux (X11). This project transforms a base Arch Linux installation into a fully functional, aesthetically pleasing, and highly productive desktop environment with just one script.
+A highly modular, robust, and fully automated dotfiles deployment for **Arch Linux** and **Debian** (X11). This project transforms a base installation into a fully functional, aesthetically pleasing, and highly productive desktop environment with just one script — and the desktop looks and behaves identically on both distros.
 
 ## Key Features
 
-- **Bulletproof Installer:** Automated deployment script (`install-arch.sh`) with safe backup mechanisms, `sudo` keep-alive, strict path resolution, and advanced flags (`--dry-run` and `--link` for developers).
+- **Multi-Distro Monorepo:** One shared set of configs, scripts, and themes (`common/`) with distro-specific installers (`arch/`, `debian/`). The root `install.sh` auto-detects your distro.
+- **Bulletproof Installer:** Automated deployment with safe backup mechanisms, `sudo` keep-alive, strict path resolution, and advanced flags (`--dry-run` and `--link` for developers).
 - **Dynamic Theming Engine:** Built-in Python script (`theme_builder.py`) using `pywal` to automatically generate system-wide color schemes (Polybar, Rofi, Dunst, i3) instantly from any wallpaper. Includes static themes (`Pro Dark`) out of the box.
 - **True Multi-Monitor Support:** Polybar automatically detects and scales across all connected displays seamlessly.
 - **Instant Keybinding Cheatsheet:** Never forget a shortcut. Press `Mod + F1` to instantly parse and view all your active i3 keybindings via an elegant Rofi menu.
@@ -23,30 +25,88 @@ A highly modular, robust, and fully automated dotfiles deployment for Arch Linux
 
 ---
 
+## Directory Structure
+
+```text
+MY-I3WM-X11/
+├── install.sh        # Main entry point: detects distro, runs the right installer
+├── arch/
+│   └── install.sh    # Arch Linux installer (pacman + yay/AUR)
+├── debian/
+│   └── install.sh    # Debian installer (apt + source builds for AUR-only tools)
+├── common/           # Everything shared between distros
+│   ├── configs/      # Base configurations (i3, polybar, rofi, dunst, kitty, picom, fastfetch)
+│   ├── scripts/      # The brain behind the rice (pywal generator, network, battery, etc.)
+│   ├── themes/       # Static theme bases (Pro-Dark) and Pywal targets
+│   ├── lib/          # Shared installer functions
+│   └── .zshrc        # Custom Zsh configuration (distro-aware aliases & plugin paths)
+├── LICENSE
+└── README.md
+```
+
+---
+
 ## Prerequisites
 
 Before running the installer, ensure you have:
 
-1. A fresh or existing **Arch Linux** installation (X11 environment).
+1. A fresh or existing **Arch Linux** or **Debian 12+ (Debian 13 "trixie" recommended)** installation (X11 environment).
 2. An active internet connection.
-3. A user account with `sudo` privileges.
+3. A user account with `sudo` privileges (on Debian: make sure your user is in the `sudo` group).
+
+> **Debian note:** Debian 13 (trixie) is recommended. On Debian 12 (bookworm) most things work, but `polybar` is older than 3.7 and does not support the `internal/tray` systray module — the bar will still run, minus the tray.
 
 ---
 
 ## Installation
 
-Clone the repository and run the installation script. The script will automatically install necessary packages (AUR included via `yay`), backup your existing dotfiles, and deploy the new configurations.
+Clone the repository and run the installation script. The script detects your distro, installs the necessary packages (AUR via `yay` on Arch; apt plus official upstream sources on Debian), backs up your existing dotfiles, and deploys the new configurations.
 
 ```bash
-git clone https://github.com/zhafrandzaky/arch-i3wm-x11.git
+git clone https://github.com/zhafrandzaky/my-i3wm-x11.git
 cd my-i3wm-x11
-./install-arch.sh
+./install.sh
+```
+
+You can also run a distro installer directly:
+
+```bash
+./arch/install.sh     # Arch Linux
+./debian/install.sh   # Debian
 ```
 
 ### Advanced Installer Flags (For Developers)
 
-- `./install-arch.sh --dry-run` : Simulates the installation process without making any actual changes to your system or installing packages. Perfect for reviewing what the script does.
-- `./install-arch.sh --link` : Uses `symlinks` instead of copying files. Ideal if you plan to modify the dotfiles and want the changes reflected immediately in your cloned Git repository.
+- `./install.sh --dry-run` : Simulates the installation process without making any actual changes to your system or installing packages. Perfect for reviewing what the script does.
+- `./install.sh --link` : Uses `symlinks` instead of copying files. Ideal if you plan to modify the dotfiles and want the changes reflected immediately in your cloned Git repository.
+
+Both flags also work when calling `arch/install.sh` or `debian/install.sh` directly.
+
+---
+
+## How Debian Gets Feature Parity
+
+Several components of this rice are AUR-only or missing from Debian's repositories. The Debian installer fills every gap so the desktop looks and behaves the same:
+
+| Arch (AUR/repo) | Debian equivalent |
+| --- | --- |
+| `i3lock-color-git` | Built from source ([Raymo111/i3lock-color](https://github.com/Raymo111/i3lock-color)) → `/usr/local/bin/i3lock` |
+| `picom-git` | `picom` (Debian repo; supports blur + rounded corners) |
+| `autotiling` | Installed via `pipx`, symlinked into `/usr/local/bin` |
+| `papirus-folders-git` | Installed from [upstream GitHub](https://github.com/PapirusDevelopmentTeam/papirus-folders) |
+| `brave-bin` | Official Brave apt repository |
+| `visual-studio-code-bin` | Official Microsoft apt repository |
+| `ttf-jetbrains-mono-nerd`, `ttf-hack-nerd`, `ttf-nerd-fonts-symbols` | Downloaded from [nerd-fonts releases](https://github.com/ryanoasis/nerd-fonts) into `~/.local/share/fonts` |
+| `ttf-material-design-icons-desktop-git` | Downloaded from [Templarian/MaterialDesign-Font](https://github.com/Templarian/MaterialDesign-Font) |
+| `starship` | apt if available, otherwise the official starship.rs installer |
+| `fastfetch` | apt if available, otherwise the official `.deb` from GitHub releases |
+| `eza` | apt if available, otherwise the official `deb.gierens.de` repository |
+| `firefox` | `firefox-esr` (the `Mod+b` binding and first-boot greeter handle both) |
+| `bat`, `fd` | `bat`/`fd-find` (Debian's `batcat`/`fdfind` are symlinked to the standard names) |
+| `polkit-gnome` | `policykit-1-gnome` (the i3 config finds the agent on either path) |
+| `unrar` | `unrar-free` |
+
+Other niceties handled automatically on Debian: `pipewire-pulse`/`pulseaudio-utils` for the volume keys and the Polybar audio module, `libnotify-bin` for `notify-send`, and the Polybar launcher icon / Fastfetch logo automatically switch to the Debian logo on Debian (and stay the Arch logo on Arch).
 
 ---
 
@@ -109,18 +169,12 @@ A lightweight, API-free weather module integrated into Polybar, utilizing `wttr.
 
 ---
 
-## Directory Structure
+### System Updates Module
 
-A quick overview of how the repository is organized:
+The Polybar updates module works on both distros:
 
-```text
-ARCH-I3WM-X11/
-├── configs/          # Base configurations (polybar, rofi, dunst, kitty, picom, fastfetch)
-├── scripts/          # The brain behind the rice (pywal generator, network, battery, etc.)
-├── themes/           # Static theme bases (Pro-Dark) and Pywal targets
-├── install-arch.sh        # The robust deployment script
-└── .zshrc            # Custom Zsh configuration
-```
+- **Arch:** counts official updates via `checkupdates` and AUR updates via `yay -Qua`; right-click launches `yay -Syu` in Kitty.
+- **Debian:** counts upgradable packages via a simulated `apt-get dist-upgrade` (no root needed); right-click launches `sudo apt update && sudo apt full-upgrade` in Kitty.
 
 ---
 

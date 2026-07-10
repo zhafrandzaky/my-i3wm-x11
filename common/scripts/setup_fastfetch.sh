@@ -9,11 +9,30 @@ echo "Generating Fastfetch Resources..."
 mkdir -p "$PRESET_DIR"
 mkdir -p "$ART_DIR"
 
-cat > "$PRESET_DIR/01.jsonc" << 'EOF'
+# Pick the ASCII logo matching the running distro
+DISTRO_ID=""
+if [ -f /etc/os-release ]; then
+    DISTRO_ID=$(. /etc/os-release; echo "$ID")
+fi
+
+case "$DISTRO_ID" in
+    arch)   LOGO="arch_small" ;;
+    debian) LOGO="debian_small" ;;
+    ubuntu) LOGO="ubuntu_small" ;;
+    *)      LOGO="" ;;
+esac
+
+if [ -n "$LOGO" ]; then
+    LOGO_SOURCE="\"source\": \"$LOGO\","
+else
+    LOGO_SOURCE=""
+fi
+
+cat > "$PRESET_DIR/01.jsonc" << EOF
 {
-  "$schema": "https://github.com/fastfetch-cli/fastfetch/raw/dev/doc/json_schema.json",
+  "\$schema": "https://github.com/fastfetch-cli/fastfetch/raw/dev/doc/json_schema.json",
   "logo": {
-    "source": "arch_small",
+    $LOGO_SOURCE
     "padding": { "top": 1, "left": 0, "right": 3 }
   },
   "display": { "separator": " ", "color": "white" },

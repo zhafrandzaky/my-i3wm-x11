@@ -20,4 +20,12 @@ dist/
 tmp/
 temp/
 dotfiles_backup_*
-.config/i3/scripts/.weather_city
+
+# Runtime artifacts written into the repo when installed with --link (symlink mode)
+**/.weather_city
+common/scripts/lock_colors.rc
+common/themes/current
+common/themes/pywal-custom/
+common/configs/i3/scripts
+common/configs/i3/themes
+common/configs/i3/.setup_done
