@@ -1,0 +1,82 @@
+configuration {
+    show-icons: true;
+    font: "JetBrainsMono Nerd Font Bold 11";
+}
+
+@import "~/.config/i3/themes/current/rofi.rasi"
+
+window {
+    width: 900px;
+    border: 1px;
+    border-color: @primary;
+    border-radius: 12px;
+    background-color: @background;
+    padding: 10px;
+    location: center;
+    anchor: center;
+}
+
+mainbox {
+    background-color: transparent;
+    children: [ inputbar, listview ];
+    padding: 10px;
+    spacing: 15px;
+}
+
+inputbar {
+    background-color: @bg-alt;
+    border-radius: 8px;
+    padding: 12px;
+    children: [ prompt, entry ];
+    margin: 0 0 10px 0;
+    border: 1px;
+    border-color: transparent;
+}
+
+prompt {
+    background-color: transparent;
+    text-color: @primary;
+    font: "JetBrainsMono Nerd Font Bold 13";
+    margin: 0 10px 0 0;
+}
+
+entry {
+    background-color: transparent;
+    text-color: @foreground;
+    placeholder: "Search Wallpaper...";
+    placeholder-color: @disabled;
+}
+
+listview {
+    background-color: transparent;
+    columns: 4;
+    lines: 2;
+    spacing: 15px;
+    cycle: true;
+    dynamic: true;
+    scrollbar: false;
+}
+
+element {
+    background-color: @bg-alt;
+    children: [ element-icon ];
+    border-radius: 8px;
+    padding: 10px;
+    border: 1px;
+    border-color: transparent;
+    cursor: pointer;
+}
+
+element selected {
+    background-color: @primary;
+    border-color: @primary;
+}
+
+element-icon {
+    size: 180px;
+    horizontal-align: 0.5;
+    vertical-align: 0.5;
+    background-color: transparent;
+    border-radius: 6px;
+    cursor: pointer;
+}

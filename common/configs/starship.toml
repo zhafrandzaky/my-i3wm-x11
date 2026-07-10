@@ -1,0 +1,95 @@
+palette = "default"
+
+command_timeout = 1000
+scan_timeout = 250
+
+format = """
+[░▒▓](accent)\
+[  ](bg:accent fg:#1E1E2E)\
+[](bg:bg_dark fg:accent)\
+$directory\
+[](fg:bg_dark bg:bg_medium)\
+$git_branch\
+$git_status\
+[](fg:bg_medium bg:bg_light)\
+$c\
+$golang\
+$java\
+$nodejs\
+$php\
+$python\
+$rust\
+[](fg:bg_light)\
+\n$character"""
+
+[directory]
+style = "bg:bg_dark fg:text_primary"
+format = "[ $path ]($style)"
+truncation_length = 3
+truncation_symbol = "…/"
+
+[git_branch]
+symbol = ""
+style = "bg:bg_medium"
+format = "[[ $symbol $branch ](fg:text_secondary bg:bg_medium)]($style)"
+
+[git_status]
+style = "bg:bg_medium"
+format = "[[($all_status$ahead_behind )](fg:text_secondary bg:bg_medium)]($style)"
+conflicted = "="
+ahead = "⇡${count}"
+behind = "⇣${count}"
+diverged = "⇕⇡${ahead_count}⇣${behind_count}"
+untracked = "?${count}"
+stashed = "*${count}"
+modified = "!${count}"
+staged = "+${count}"
+renamed = "»${count}"
+deleted = "✘${count}"
+
+[c]
+symbol = " "
+style = "bg:bg_light"
+format = "[[ $symbol($version) ](fg:text_primary bg:bg_light)]($style)"
+
+[golang]
+symbol = " "
+style = "bg:bg_light"
+format = "[[ $symbol($version) ](fg:text_primary bg:bg_light)]($style)"
+
+[java]
+symbol = " "
+style = "bg:bg_light"
+format = "[[ $symbol($version) ](fg:text_primary bg:bg_light)]($style)"
+
+[nodejs]
+symbol = " "
+style = "bg:bg_light"
+format = "[[ $symbol($version) ](fg:text_primary bg:bg_light)]($style)"
+
+[php]
+symbol = " "
+style = "bg:bg_light"
+format = "[[ $symbol($version) ](fg:text_primary bg:bg_light)]($style)"
+
+[python]
+symbol = " "
+style = "bg:bg_light"
+format = "[[ $symbol($version) ](fg:text_primary bg:bg_light)]($style)"
+
+[rust]
+symbol = " "
+style = "bg:bg_light"
+format = "[[ $symbol($version) ](fg:text_primary bg:bg_light)]($style)"
+
+[character]
+success_symbol = "[➜](#A6E3A1)"
+error_symbol = "[➜](#F38BA8)"
+
+[palettes.default]
+accent = "#CBA6F7"
+text_primary = "#CDD6F4"
+text_secondary = "#BAC2DE"
+bg_dark = "#313244"
+bg_medium = "#45475A"
+bg_light = "#585B70"
