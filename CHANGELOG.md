@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.2] - 2026-07-12
+
 ### Fixed
 
 - Fresh minimal Arch installs had no audio server, so the Polybar volume
@@ -151,6 +153,7 @@ Dunst, Kitty, lock screen, fonts, volume keys, first-boot greeter).
 - `psmisc`/`procps` installed explicitly on Debian (`killall`/`pgrep` are
   required by the Polybar launcher and theme switcher).
 
-[unreleased]: https://github.com/zhafrandzaky/my-i3wm-x11/compare/v1.0.1...HEAD
+[unreleased]: https://github.com/zhafrandzaky/my-i3wm-x11/compare/v1.0.2...HEAD
+[1.0.2]: https://github.com/zhafrandzaky/my-i3wm-x11/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/zhafrandzaky/my-i3wm-x11/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/zhafrandzaky/my-i3wm-x11/releases/tag/v1.0.0
