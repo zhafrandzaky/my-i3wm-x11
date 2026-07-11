@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-07-12
+
+### Changed
+
+- Polybar module lists are composed at launch from detected hardware: the
+  traffic, backlight, and battery modules are omitted cleanly (no dangling
+  separators or empty stubs) on machines without a network interface,
+  backlight device, or battery.
+
+### Fixed
+
+- Arch installer now includes `ttf-nerd-fonts-symbols-mono`: Polybar requests
+  the "Symbols Nerd Font Mono" family, which the non-Mono symbols package does
+  not provide, so fontconfig silently substituted a different font on Arch
+  while Debian used the real one.
+
+- Polybar distro icon rendered as an empty black segment on Debian: the icon
+  script had lost its glyph bytes; it now emits verified codepoints (U+F303
+  Arch, U+F306 Debian, U+F31B Ubuntu, U+F17C fallback).
+- Terminal prompt showed the Arch logo on every distro: the hardcoded glyph in
+  `starship.toml` was replaced with Starship's `os` module and per-distro
+  symbols written as escape sequences.
+- Polybar network traffic module was blank on machines without `wlan0` and the
+  backlight module was tied to `intel_backlight`: both are now detected at
+  launch (`default route interface`, `/sys/class/backlight`) and passed via
+  environment variables, with the previous values as fallbacks.
+
 ## [1.0.0] - 2026-07-11
 
 First public release: a fully automated i3wm (X11) desktop for **Arch Linux**
@@ -108,5 +135,6 @@ Dunst, Kitty, lock screen, fonts, volume keys, first-boot greeter).
 - `psmisc`/`procps` installed explicitly on Debian (`killall`/`pgrep` are
   required by the Polybar launcher and theme switcher).
 
-[unreleased]: https://github.com/zhafrandzaky/my-i3wm-x11/compare/v1.0.0...HEAD
+[unreleased]: https://github.com/zhafrandzaky/my-i3wm-x11/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/zhafrandzaky/my-i3wm-x11/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/zhafrandzaky/my-i3wm-x11/releases/tag/v1.0.0

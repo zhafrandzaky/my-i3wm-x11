@@ -83,7 +83,7 @@ if ask_user "Install Modern Terminal Environment (Kitty, Zsh, Starship, Fastfetc
 fi
 
 if ask_user "Install Mega Font Pack (Coding, Emoji, CJK Support)?" "Y"; then
-    PKGS_FONTS="ttf-jetbrains-mono-nerd ttf-nerd-fonts-symbols \
+    PKGS_FONTS="ttf-jetbrains-mono-nerd ttf-nerd-fonts-symbols ttf-nerd-fonts-symbols-mono \
                 ttf-fira-code ttf-hack-nerd ttf-cascadia-code ttf-ibm-plex \
                 noto-fonts-emoji noto-fonts-cjk otf-font-awesome \
                 ttf-material-design-icons-desktop-git"

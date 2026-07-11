@@ -5,7 +5,7 @@ scan_timeout = 250
 
 format = """
 [░▒▓](accent)\
-[  ](bg:accent fg:#1E1E2E)\
+$os\
 [](bg:bg_dark fg:accent)\
 $directory\
 [](fg:bg_dark bg:bg_medium)\
@@ -85,6 +85,18 @@ format = "[[ $symbol($version) ](fg:text_primary bg:bg_light)]($style)"
 [character]
 success_symbol = "[➜](#A6E3A1)"
 error_symbol = "[➜](#F38BA8)"
+
+[os]
+disabled = false
+style = "bg:accent fg:#1E1E2E"
+format = "[ $symbol ]($style)"
+
+[os.symbols]
+Arch = "\uf303"
+Debian = "\uf306"
+Ubuntu = "\uf31b"
+Linux = "\uf17c"
+Unknown = "\uf17c"
 
 [palettes.default]
 accent = "#CBA6F7"
