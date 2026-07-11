@@ -40,6 +40,7 @@ MY-I3WM-X11/
 │   ├── themes/       # Static theme bases (Pro-Dark) and Pywal targets
 │   ├── lib/          # Shared installer functions
 │   └── .zshrc        # Custom Zsh configuration (distro-aware aliases & plugin paths)
+├── CHANGELOG.md
 ├── LICENSE
 └── README.md
 ```
@@ -103,7 +104,7 @@ Several components of this rice are AUR-only or missing from Debian's repositori
 | `eza` | apt if available, otherwise the official `deb.gierens.de` repository |
 | `firefox` | `firefox-esr` (the `Mod+b` binding and first-boot greeter handle both) |
 | `bat`, `fd` | `bat`/`fd-find` (Debian's `batcat`/`fdfind` are symlinked to the standard names) |
-| `polkit-gnome` | `policykit-1-gnome` (the i3 config finds the agent on either path) |
+| `polkit-gnome` | `policykit-1-gnome` (Debian 12) or `mate-polkit`/`lxpolkit` (Debian 13) — the installer picks what's available and the i3 config finds the agent on any path |
 | `unrar` | `unrar-free` |
 
 Other niceties handled automatically on Debian: `pipewire-pulse`/`pulseaudio-utils` for the volume keys and the Polybar audio module, `libnotify-bin` for `notify-send`, and the Polybar launcher icon / Fastfetch logo automatically switch to the Debian logo on Debian (and stay the Arch logo on Arch).

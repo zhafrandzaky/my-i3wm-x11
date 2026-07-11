@@ -118,7 +118,12 @@ deploy_config() {
 
 preflight_checks() {
     log "Checking internet connection..."
-    ping -c 1 8.8.8.8 &> /dev/null || error "No Internet Connection!"
+    if ! ping -c 1 8.8.8.8 &> /dev/null; then
+        # ICMP may be unavailable (containers, filtered networks); fall back to HTTPS
+        curl -fsI --max-time 10 https://deb.debian.org &> /dev/null \
+            || curl -fsI --max-time 10 https://archlinux.org &> /dev/null \
+            || error "No Internet Connection!"
+    fi
 
     log "Checking sudo access..."
     if ! sudo -v; then
@@ -209,7 +214,8 @@ apply_system_fixes() {
 
         log "Changing Default Shell to Zsh..."
         if [ "$SHELL" != "/usr/bin/zsh" ]; then
-            chsh -s /usr/bin/zsh
+            # Via sudo: chsh run as the user would prompt for a password
+            sudo chsh -s /usr/bin/zsh "$USER"
         fi
 
         log "Applying Default Theme (Pro-Dark)..."

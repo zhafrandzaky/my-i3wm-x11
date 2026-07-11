@@ -85,13 +85,13 @@ fi
 if ask_user "Install Mega Font Pack (Coding, Emoji, CJK Support)?" "Y"; then
     PKGS_FONTS="ttf-jetbrains-mono-nerd ttf-nerd-fonts-symbols \
                 ttf-fira-code ttf-hack-nerd ttf-cascadia-code ttf-ibm-plex \
-                noto-fonts-emoji noto-fonts-cjk ttf-font-awesome \
+                noto-fonts-emoji noto-fonts-cjk otf-font-awesome \
                 ttf-material-design-icons-desktop-git"
     install_pkg "Fonts" "$PKGS_FONTS"
 fi
 
 if ask_user "Install File Manager Tools (Thunar + Archive Support)?" "Y"; then
-    PKGS_FILE="thunar thunar-archive-plugin thunar-volman file-roller gvfs gvfs-mtp unzip p7zip unrar"
+    PKGS_FILE="thunar thunar-archive-plugin thunar-volman file-roller gvfs gvfs-mtp unzip 7zip unrar"
     install_pkg "File Management" "$PKGS_FILE"
 fi
 

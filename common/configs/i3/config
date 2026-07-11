@@ -20,13 +20,16 @@ exec_always --no-startup-id gsettings set org.gnome.desktop.interface gtk-theme 
 exec_always --no-startup-id gsettings set org.gnome.desktop.interface icon-theme "Papirus-Dark"
 
 # AUTOSTART
-# Polkit agent lives in different paths per distro (Arch: polkit-gnome, Debian: policykit-1-gnome)
-exec --no-startup-id sh -c 'for agent in /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1 /usr/lib/policykit-1-gnome/polkit-gnome-authentication-agent-1 /usr/libexec/polkit-gnome-authentication-agent-1; do [ -x "$agent" ] && exec "$agent"; done'
+# Polkit agent lives in different paths per distro (Arch: polkit-gnome; Debian 12: policykit-1-gnome; Debian 13: mate-polkit or lxpolkit)
+exec --no-startup-id sh -c 'for agent in /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1 /usr/lib/policykit-1-gnome/polkit-gnome-authentication-agent-1 /usr/libexec/polkit-gnome-authentication-agent-1 /usr/libexec/polkit-mate-authentication-agent-1 /usr/lib/mate-polkit/polkit-mate-authentication-agent-1 /usr/bin/lxpolkit; do [ -x "$agent" ] && exec "$agent"; done'
 exec --no-startup-id xss-lock --transfer-sleep-lock -- $scripts/lock.sh
+# Start dunst explicitly: D-Bus activation is unreliable under startx sessions
+# (systemd user bus lacks DISPLAY), which stalls every notify-send for ~25s
+exec --no-startup-id dunst
 exec --no-startup-id nm-applet
 exec --no-startup-id blueman-applet
 exec --no-startup-id xfce4-power-manager
-exec_always --no-startup-id picom -b
+exec_always --no-startup-id ~/.config/i3/scripts/picom_launch.sh
 exec_always --no-startup-id feh --bg-fill ~/.config/i3/themes/current/wallpaper.jpg
 exec_always --no-startup-id ~/.config/polybar/launch.sh
 exec_always --no-startup-id autotiling
@@ -40,7 +43,8 @@ bindsym $mod+F1 exec --no-startup-id ~/.config/i3/scripts/rofi_cheatsheet.sh
 ## Open Terminal (Kitty)
 bindsym $mod+Return exec $term
 ## Open Web Browser (Firefox)
-bindsym $mod+b exec --no-startup-id sh -c 'command -v firefox >/dev/null 2>&1 && exec firefox; exec firefox-esr'
+# Quoted: i3 splits bindsym command lists on ';' unless the exec payload is double-quoted
+bindsym $mod+b exec --no-startup-id "sh -c 'command -v firefox >/dev/null 2>&1 && exec firefox; exec firefox-esr'"
 ## Open Code Editor (VS Code)
 bindsym $mod+c exec code
 ## Open File Manager (Thunar)

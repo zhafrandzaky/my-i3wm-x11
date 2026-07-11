@@ -36,18 +36,33 @@ install_pkg() {
     fi
 
     log "Installing $category..."
-    sudo apt-get install -y $pkgs 2>> "$LOG_FILE"
+    if sudo apt-get install -y $pkgs 2>> "$LOG_FILE"; then
+        echo -e "${GREEN}[OK] $category Installed.${NC}"
+        return 0
+    fi
 
-    if [ $? -eq 0 ]; then
+    # One uninstallable package aborts the whole apt transaction; retry
+    # per package so a single bad name cannot take down the entire group.
+    warn "Group install for $category failed. Retrying packages individually..."
+    local failed=""
+    local pkg
+    for pkg in $pkgs; do
+        sudo apt-get install -y "$pkg" >> "$LOG_FILE" 2>&1 || failed="$failed $pkg"
+    done
+
+    if [ -z "$failed" ]; then
         echo -e "${GREEN}[OK] $category Installed.${NC}"
     else
-        warn "Some packages in $category failed to install. Check log at $LOG_FILE."
+        warn "Failed to install from $category:$failed. Check log at $LOG_FILE."
     fi
 }
 
-# Returns 0 if the package exists in the configured apt repositories
+# Returns 0 if the package is actually installable (has a real candidate version;
+# apt-cache show alone also matches removed/virtual packages)
 apt_has_pkg() {
-    apt-cache show "$1" &> /dev/null
+    local candidate
+    candidate=$(apt-cache policy "$1" 2>/dev/null | awk '/Candidate:/{print $2}')
+    [ -n "$candidate" ] && [ "$candidate" != "(none)" ] && [ "$candidate" != "none" ]
 }
 
 #  AUR-EQUIVALENT BUILDS & FALLBACKS
@@ -69,14 +84,22 @@ build_i3lock_color() {
                       libfontconfig1-dev libxcb-composite0-dev libev-dev libx11-xcb-dev \
                       libxcb-xkb-dev libxcb-xinerama0-dev libxcb-randr0-dev libxcb-image0-dev \
                       libxcb-util0-dev libxcb-xrm-dev libxkbcommon-dev libxkbcommon-x11-dev \
-                      libjpeg-dev"
+                      libjpeg-dev libgif-dev"
     sudo apt-get install -y $build_deps 2>> "$LOG_FILE"
 
     rm -rf /tmp/i3lock-color
-    if git clone --depth 1 https://github.com/Raymo111/i3lock-color.git /tmp/i3lock-color 2>> "$LOG_FILE"; then
+    if git clone https://github.com/Raymo111/i3lock-color.git /tmp/i3lock-color 2>> "$LOG_FILE"; then
+        # Install under /usr/local so we never touch /usr/bin/i3lock: dpkg owns that
+        # path via Debian's i3lock package (a Recommends of i3), and overwriting it
+        # would get clobbered by dpkg on remove/upgrade. /usr/local/bin wins in PATH.
+        # --sysconfdir=/etc keeps the PAM service file where PAM actually looks.
         (
             cd /tmp/i3lock-color || exit 1
-            ./build.sh >> "$LOG_FILE" 2>&1 && sudo ./install-i3lock-color.sh >> "$LOG_FILE" 2>&1
+            autoreconf -fi >> "$LOG_FILE" 2>&1 \
+                && mkdir -p build && cd build \
+                && ../configure --prefix=/usr/local --sysconfdir=/etc >> "$LOG_FILE" 2>&1 \
+                && make >> "$LOG_FILE" 2>&1 \
+                && sudo make install >> "$LOG_FILE" 2>&1
         )
         if [ -x /usr/local/bin/i3lock ]; then
             echo -e "${GREEN}[OK] i3lock-color installed to /usr/local/bin/i3lock.${NC}"
@@ -85,13 +108,6 @@ build_i3lock_color() {
         fi
     else
         warn "Could not clone i3lock-color repository."
-    fi
-
-    # Remove Debian's plain i3lock (pulled in as a Recommends of i3); it lacks the
-    # --blur/--clock options lock.sh depends on. /usr/local/bin/i3lock replaces it.
-    if dpkg -s i3lock &> /dev/null; then
-        warn "Removing conflicting package: i3lock (replaced by source-built i3lock-color)"
-        sudo apt-get remove -y i3lock 2>> "$LOG_FILE"
     fi
 }
 
@@ -274,6 +290,82 @@ install_eza() {
     fi
 }
 
+install_polkit_agent() {
+    if [ "$DRY_RUN" = true ]; then
+        log "[DRY-RUN] Skipping polkit agent install."
+        return 0
+    fi
+
+    # policykit-1-gnome (bookworm) was removed in trixie; fall back to the
+    # MATE or LXDE agents. The i3 config autostart tries all their paths.
+    local agent
+    for agent in policykit-1-gnome mate-polkit lxpolkit; do
+        if apt_has_pkg "$agent"; then
+            install_pkg "Polkit Agent ($agent)" "$agent"
+            return 0
+        fi
+    done
+    warn "No polkit authentication agent available. GUI privilege prompts will not work."
+}
+
+install_pywal() {
+    if [ "$DRY_RUN" = true ]; then
+        log "[DRY-RUN] Skipping pywal install."
+        return 0
+    fi
+
+    if command -v wal &> /dev/null; then
+        log "pywal already installed. Skipping."
+        return 0
+    fi
+
+    if apt_has_pkg python3-pywal; then
+        install_pkg "Pywal (apt)" "python3-pywal"
+        return 0
+    fi
+
+    log "Installing pywal via pipx (removed from this Debian release)..."
+    sudo apt-get install -y pipx python3-venv 2>> "$LOG_FILE"
+    pipx install pywal >> "$LOG_FILE" 2>&1
+
+    if [ -x "$HOME/.local/bin/wal" ]; then
+        # theme_builder.py invokes 'wal'; i3-spawned processes may lack ~/.local/bin in PATH
+        sudo ln -sf "$HOME/.local/bin/wal" /usr/local/bin/wal
+        echo -e "${GREEN}[OK] pywal installed.${NC}"
+    else
+        warn "pywal install failed. Dynamic Pywal theming will not work. Check $LOG_FILE."
+    fi
+}
+
+install_ibm_plex() {
+    if [ "$DRY_RUN" = true ]; then
+        log "[DRY-RUN] Skipping IBM Plex font install."
+        return 0
+    fi
+
+    if apt_has_pkg fonts-ibm-plex; then
+        install_pkg "IBM Plex (apt)" "fonts-ibm-plex"
+        return 0
+    fi
+
+    local font_dir="$HOME/.local/share/fonts/IBMPlex"
+    if [ -d "$font_dir" ] && [ -n "$(ls -A "$font_dir" 2>/dev/null)" ]; then
+        log "IBM Plex fonts already present. Skipping."
+        return 0
+    fi
+
+    log "Downloading IBM Plex fonts from upstream GitHub (removed from this Debian release)..."
+    if curl -fL --max-time 300 -o /tmp/ibm-plex.zip \
+        "https://github.com/IBM/plex/releases/download/v6.4.0/TrueType.zip" 2>> "$LOG_FILE"; then
+        mkdir -p "$font_dir"
+        unzip -o -q /tmp/ibm-plex.zip -d "$font_dir" >> "$LOG_FILE" 2>&1
+        rm -f /tmp/ibm-plex.zip
+        echo -e "${GREEN}[OK] IBM Plex fonts installed.${NC}"
+    else
+        warn "Failed to download IBM Plex fonts (cosmetic only; no config depends on them)."
+    fi
+}
+
 setup_cli_symlinks() {
     if [ "$DRY_RUN" = true ]; then
         log "[DRY-RUN] Skipping bat/fd compatibility symlinks."
@@ -370,11 +462,11 @@ echo -e "\n${CYAN}>>> PACKAGE SELECTION${NC}"
 # Core Packages Grouping (apt equivalents of the Arch lists)
 PKG_XORG="xserver-xorg xinit x11-xserver-utils"
 PKG_WM="i3 polybar rofi dunst picom xss-lock python3-i3ipc libnotify-bin"
-PKG_SYS="brightnessctl xfce4-power-manager policykit-1-gnome lxappearance qt5ct dbus-x11 libglib2.0-bin xdg-utils xdg-user-dirs"
+PKG_SYS="brightnessctl xfce4-power-manager lxappearance qt5ct dbus-x11 libglib2.0-bin xdg-utils xdg-user-dirs psmisc procps mesa-utils"
 PKG_NET="network-manager network-manager-gnome blueman"
 PKG_AUDIO="pavucontrol playerctl pipewire-pulse wireplumber pulseaudio-utils"
 PKG_APPS="flameshot suckless-tools zenity imagemagick feh mpv"
-PKG_CLI="jq progress curl wget gnupg htop neovim python3-pynvim npm xclip ripgrep nano less tree bat fd-find python3-pywal unzip git"
+PKG_CLI="jq progress curl wget gnupg htop neovim python3-pynvim npm xclip ripgrep nano less tree bat fd-find unzip git"
 PKG_THEMES="papirus-icon-theme arc-theme"
 
 PKGS_CORE="$PKG_XORG $PKG_WM $PKG_SYS $PKG_NET $PKG_AUDIO $PKG_APPS $PKG_CLI $PKG_THEMES"
@@ -382,9 +474,11 @@ PKGS_CORE="$PKG_XORG $PKG_WM $PKG_SYS $PKG_NET $PKG_AUDIO $PKG_APPS $PKG_CLI $PK
 install_pkg "Core System (WM, Utils & Rice Tools)" "$PKGS_CORE"
 
 # AUR-equivalents required by the core setup
+install_polkit_agent
 build_i3lock_color
 install_autotiling
 install_papirus_folders
+install_pywal
 setup_cli_symlinks
 
 if ask_user "Install Modern Terminal Environment (Kitty, Zsh, Starship, Fastfetch)?" "Y"; then
@@ -396,9 +490,10 @@ if ask_user "Install Modern Terminal Environment (Kitty, Zsh, Starship, Fastfetc
 fi
 
 if ask_user "Install Mega Font Pack (Coding, Emoji, CJK Support)?" "Y"; then
-    PKGS_FONTS="fonts-firacode fonts-cascadia-code fonts-ibm-plex \
+    PKGS_FONTS="fonts-firacode fonts-cascadia-code \
                 fonts-noto-color-emoji fonts-noto-cjk fonts-font-awesome fontconfig"
     install_pkg "Fonts (apt)" "$PKGS_FONTS"
+    install_ibm_plex
     install_nerd_fonts
 fi
 
