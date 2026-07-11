@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fresh minimal Arch installs had no audio server, so the Polybar volume
+  module and volume keys did not work: the Arch installer now installs the
+  PipeWire stack (`pipewire`, `pipewire-pulse`, `pipewire-alsa`,
+  `wireplumber`), matching what the Debian installer already provided.
+
+### Changed
+
+- Arch installer enables `NetworkManager.service` and `bluetooth.service`,
+  mirroring Debian's install-time service policy so nm-applet, the Rofi
+  network menu, and Blueman work on a fresh minimal install.
+- Arch installer adds `bluez`/`bluez-utils` explicitly, plus `xdg-user-dirs`
+  (wallpaper import folder) and `mesa-utils` (authoritative GPU detection for
+  the picom launcher) for runtime parity with the Debian package set.
+
 ## [1.0.1] - 2026-07-12
 
 ### Changed

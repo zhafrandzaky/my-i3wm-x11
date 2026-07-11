@@ -66,9 +66,11 @@ echo -e "\n${CYAN}>>> PACKAGE SELECTION${NC}"
 # Core Packages Grouping
 PKG_XORG="xorg-server xorg-xinit xorg-xset xorg-xrandr"
 PKG_WM="i3-wm polybar rofi dunst i3lock-color-git picom-git xss-lock autotiling python-i3ipc libnotify"
-PKG_SYS="brightnessctl xfce4-power-manager polkit-gnome lxappearance qt5ct"
-PKG_NET="network-manager-applet blueman"
-PKG_AUDIO="pavucontrol playerctl"
+PKG_SYS="brightnessctl xfce4-power-manager polkit-gnome lxappearance qt5ct xdg-user-dirs mesa-utils"
+PKG_NET="network-manager-applet blueman bluez bluez-utils"
+# PipeWire stack included explicitly: a minimal Arch install has no audio
+# server, unlike Debian where the installer pulls pipewire-pulse (BUG-1)
+PKG_AUDIO="pavucontrol playerctl pipewire pipewire-pulse pipewire-alsa wireplumber"
 PKG_APPS="flameshot dmenu zenity imagemagick feh mpv"
 PKG_CLI="jq progress curl htop neovim python-pynvim npm xclip ripgrep nano less tree bat fd python-pywal"
 PKG_THEMES="papirus-icon-theme arc-gtk-theme papirus-folders-git"
@@ -76,6 +78,14 @@ PKG_THEMES="papirus-icon-theme arc-gtk-theme papirus-folders-git"
 PKGS_CORE="$PKG_XORG $PKG_WM $PKG_SYS $PKG_NET $PKG_AUDIO $PKG_APPS $PKG_CLI $PKG_THEMES"
 
 install_pkg "Core System (WM, Utils & Rice Tools)" "$PKGS_CORE"
+
+# Debian enables installed services by package policy; mirror that on Arch so
+# nm-applet, rofi_network, and blueman work on a fresh minimal install.
+if [ "$DRY_RUN" = false ]; then
+    log "Enabling system services (NetworkManager, Bluetooth)..."
+    sudo systemctl enable NetworkManager.service 2>> "$LOG_FILE" || warn "Could not enable NetworkManager.service."
+    sudo systemctl enable bluetooth.service 2>> "$LOG_FILE" || warn "Could not enable bluetooth.service."
+fi
 
 if ask_user "Install Modern Terminal Environment (Kitty, Zsh, Starship, Fastfetch)?" "Y"; then
     PKGS_TERM="kitty zsh starship fastfetch eza bat zsh-syntax-highlighting zsh-autosuggestions fzf"
