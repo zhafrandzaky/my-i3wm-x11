@@ -103,6 +103,8 @@ build_i3lock_color() {
         )
         if [ -x /usr/local/bin/i3lock ]; then
             echo -e "${GREEN}[OK] i3lock-color installed to /usr/local/bin/i3lock.${NC}"
+            rollback_record_created_path "/usr/local/bin/i3lock" "root"
+            [ -f /etc/pam.d/i3lock ] && rollback_record_created_path "/etc/pam.d/i3lock" "root"
         else
             warn "i3lock-color build failed. Lockscreen will not work until fixed. Check $LOG_FILE."
         fi
@@ -129,6 +131,7 @@ install_autotiling() {
     if [ -x "$HOME/.local/bin/autotiling" ]; then
         # i3 autostart may not have ~/.local/bin in PATH; expose it system-wide
         sudo ln -sf "$HOME/.local/bin/autotiling" /usr/local/bin/autotiling
+        rollback_record_created_path "/usr/local/bin/autotiling" "root"
         echo -e "${GREEN}[OK] autotiling installed.${NC}"
     else
         warn "autotiling install failed. Check $LOG_FILE."
@@ -150,6 +153,7 @@ install_papirus_folders() {
     rm -rf /tmp/papirus-folders
     if git clone --depth 1 https://github.com/PapirusDevelopmentTeam/papirus-folders.git /tmp/papirus-folders 2>> "$LOG_FILE"; then
         sudo install -m 755 /tmp/papirus-folders/papirus-folders /usr/local/bin/papirus-folders
+        rollback_record_created_path "/usr/local/bin/papirus-folders" "root"
         echo -e "${GREEN}[OK] papirus-folders installed.${NC}"
     else
         warn "Could not clone papirus-folders repository."
@@ -178,6 +182,7 @@ install_nerd_fonts() {
             mkdir -p "$font_dir/$font"
             unzip -o -q "/tmp/${font}.zip" -d "$font_dir/$font" >> "$LOG_FILE" 2>&1
             rm -f "/tmp/${font}.zip"
+            rollback_record_created_path "$font_dir/$font" "user"
             echo -e "${GREEN}[OK] Nerd Font '$font' installed.${NC}"
         else
             warn "Failed to download Nerd Font '$font'. Polybar/Kitty icons may look wrong."
@@ -187,9 +192,12 @@ install_nerd_fonts() {
     # Material Design Icons (AUR: ttf-material-design-icons-desktop-git)
     if [ ! -f "$font_dir/MaterialDesignIconsDesktop.ttf" ]; then
         log "Downloading Material Design Icons font..."
-        curl -fL --max-time 120 -o "$font_dir/MaterialDesignIconsDesktop.ttf" \
-            "https://raw.githubusercontent.com/Templarian/MaterialDesign-Font/master/MaterialDesignIconsDesktop.ttf" 2>> "$LOG_FILE" \
-            || warn "Failed to download Material Design Icons font."
+        if curl -fL --max-time 120 -o "$font_dir/MaterialDesignIconsDesktop.ttf" \
+            "https://raw.githubusercontent.com/Templarian/MaterialDesign-Font/master/MaterialDesignIconsDesktop.ttf" 2>> "$LOG_FILE"; then
+            rollback_record_created_path "$font_dir/MaterialDesignIconsDesktop.ttf" "user"
+        else
+            warn "Failed to download Material Design Icons font."
+        fi
     fi
 
     log "Refreshing font cache..."
@@ -282,6 +290,8 @@ install_eza() {
         | sudo gpg --dearmor --yes -o /etc/apt/keyrings/gierens.gpg; then
         echo "deb [signed-by=/etc/apt/keyrings/gierens.gpg] http://deb.gierens.de stable main" \
             | sudo tee /etc/apt/sources.list.d/gierens.list > /dev/null
+        rollback_record_created_path "/etc/apt/sources.list.d/gierens.list" "root"
+        rollback_record_created_path "/etc/apt/keyrings/gierens.gpg" "root"
         sudo chmod 644 /etc/apt/keyrings/gierens.gpg /etc/apt/sources.list.d/gierens.list
         sudo apt-get update 2>> "$LOG_FILE"
         install_pkg "Eza" "eza"
@@ -331,6 +341,7 @@ install_pywal() {
     if [ -x "$HOME/.local/bin/wal" ]; then
         # theme_builder.py invokes 'wal'; i3-spawned processes may lack ~/.local/bin in PATH
         sudo ln -sf "$HOME/.local/bin/wal" /usr/local/bin/wal
+        rollback_record_created_path "/usr/local/bin/wal" "root"
         echo -e "${GREEN}[OK] pywal installed.${NC}"
     else
         warn "pywal install failed. Dynamic Pywal theming will not work. Check $LOG_FILE."
@@ -360,6 +371,7 @@ install_ibm_plex() {
         mkdir -p "$font_dir"
         unzip -o -q /tmp/ibm-plex.zip -d "$font_dir" >> "$LOG_FILE" 2>&1
         rm -f /tmp/ibm-plex.zip
+        rollback_record_created_path "$font_dir" "user"
         echo -e "${GREEN}[OK] IBM Plex fonts installed.${NC}"
     else
         warn "Failed to download IBM Plex fonts (cosmetic only; no config depends on them)."
@@ -376,10 +388,12 @@ setup_cli_symlinks() {
     mkdir -p "$HOME/.local/bin"
     if command -v batcat &> /dev/null && ! command -v bat &> /dev/null; then
         ln -sf "$(command -v batcat)" "$HOME/.local/bin/bat"
+        rollback_record_created_path "$HOME/.local/bin/bat" "user"
         log "Symlinked bat -> batcat"
     fi
     if command -v fdfind &> /dev/null && ! command -v fd &> /dev/null; then
         ln -sf "$(command -v fdfind)" "$HOME/.local/bin/fd"
+        rollback_record_created_path "$HOME/.local/bin/fd" "user"
         log "Symlinked fd -> fdfind"
     fi
 }
@@ -400,6 +414,8 @@ install_brave() {
         https://brave-browser-apt-release.s3.brave.com/brave-browser-archive-keyring.gpg 2>> "$LOG_FILE"; then
         echo "deb [arch=amd64,arm64 signed-by=/usr/share/keyrings/brave-browser-archive-keyring.gpg] https://brave-browser-apt-release.s3.brave.com/ stable main" \
             | sudo tee /etc/apt/sources.list.d/brave-browser-release.list > /dev/null
+        rollback_record_created_path "/etc/apt/sources.list.d/brave-browser-release.list" "root"
+        rollback_record_created_path "/usr/share/keyrings/brave-browser-archive-keyring.gpg" "root"
         sudo apt-get update 2>> "$LOG_FILE"
         install_pkg "Brave" "brave-browser"
     else
@@ -425,6 +441,8 @@ install_vscode() {
         | sudo gpg --dearmor --yes -o /etc/apt/keyrings/packages.microsoft.gpg; then
         echo "deb [arch=amd64,arm64,armhf signed-by=/etc/apt/keyrings/packages.microsoft.gpg] https://packages.microsoft.com/repos/code stable main" \
             | sudo tee /etc/apt/sources.list.d/vscode.list > /dev/null
+        rollback_record_created_path "/etc/apt/sources.list.d/vscode.list" "root"
+        rollback_record_created_path "/etc/apt/keyrings/packages.microsoft.gpg" "root"
         sudo apt-get update 2>> "$LOG_FILE"
         install_pkg "VS Code" "code"
     else

@@ -119,6 +119,26 @@ desktop provisioning.
 
 Both flags also work when calling `arch/install.sh` or `debian/install.sh` directly.
 
+### Uninstalling (transactional rollback)
+
+Every installation records a transaction manifest, so `./uninstall.sh` restores
+your system to its exact pre-install state — overwritten files, replaced
+symlinks, login shell, GTK/gsettings theme, enabled services, added groups, and
+the packages the installer added (never ones that existed before):
+
+```bash
+./uninstall.sh            # roll back the most recent installation
+./uninstall.sh --dry-run  # show exactly what would change, change nothing
+./uninstall.sh --list     # list recorded transactions
+./uninstall.sh --force    # also restore files you edited after install
+./uninstall.sh --keep-packages   # restore configs/services but keep packages
+```
+
+Files you modified after installing are detected (via checksum) and **left
+untouched** unless you pass `--force`. On **NixOS**, rollback is the native
+`sudo nixos-rebuild switch --rollback` (the installation is a system
+generation); `uninstall.sh` guides and can run it for you.
+
 ---
 
 ## How Debian Gets Feature Parity

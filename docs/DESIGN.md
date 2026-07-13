@@ -231,3 +231,30 @@ refactor is internal (no user-facing breaking change).
 Non-goals: no nix profile installs; no source builds on NixOS; no /etc or
 nix.conf mutation by scripts; no mkOutOfStoreSymlink default; no PAM/setuid
 workarounds; no Stylix default; no per-distro forks of `common/`.
+
+---
+
+## 10. Transactional rollback (uninstall.sh)
+
+`install.sh` records every mutation into a transaction manifest so `uninstall.sh`
+can restore the system to its exact pre-install state — and touch nothing else.
+
+- **Engine**: `common/lib/rollback.sh`, sourced by the installers (record side)
+  and by `uninstall.sh` (restore side). Manifests live in
+  `~/.local/state/i3wm-x11/rollback/<install_id>/manifest.json` (+ `latest`).
+- **Recorded**: file ops (create/replace with pre-install backup + SHA-256 of
+  the deployed result), login shell (before/after), added groups (only ones the
+  user was not already in), enabled services (only ones the installer flipped),
+  udev rule (with existed-before flag), gsettings baseline (gtk/icon/color/cursor
+  theme), created system/user paths (Debian source builds, vendor apt repos,
+  fonts), and the package delta via `pacman -Qqe` / `apt-mark showmanual` diff.
+- **Safety invariants**: pre-existing packages are never removed (diff-based);
+  files not in the manifest are never touched; a file whose current checksum
+  differs from the recorded one is reported as user-modified and **skipped**
+  unless `--force` is given; only services the installer enabled are disabled.
+- **Distro handling**: Arch/Debian use the manifest engine (Debian service
+  teardown happens via package removal, since dpkg enables services on install).
+  **NixOS** is declarative — `uninstall.sh` delegates to
+  `sudo nixos-rebuild switch --rollback` (generations already are a transactional
+  rollback) plus removal of the wizard-generated config and runtime state.
+- **Flags**: `--dry-run`, `--force`, `--keep-packages`, `--id <ID>`, `--list`.

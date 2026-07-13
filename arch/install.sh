@@ -98,9 +98,10 @@ if [ "$DRY_RUN" = false ]; then
     elif [ -n "$CONFLICTING_NET" ]; then
         warn "Not enabling NetworkManager: $CONFLICTING_NET manages networking. The Rofi network menu needs nmcli; switch manually if you want it: sudo systemctl disable $CONFLICTING_NET && sudo systemctl enable NetworkManager."
     else
-        sudo systemctl enable NetworkManager.service 2>> "$LOG_FILE" || warn "Could not enable NetworkManager.service."
+        # rollback_enable_service records it only if we actually flip it on.
+        rollback_enable_service NetworkManager.service
     fi
-    sudo systemctl enable bluetooth.service 2>> "$LOG_FILE" || warn "Could not enable bluetooth.service."
+    rollback_enable_service bluetooth.service
 fi
 
 if ask_user "Install Modern Terminal Environment (Kitty, Zsh, Starship, Fastfetch)?" "Y"; then

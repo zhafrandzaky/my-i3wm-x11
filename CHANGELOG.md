@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-07-14
+
+### Added
+
+- **Transactional rollback system** (`uninstall.sh` + `common/lib/rollback.sh`):
+  every installation records a manifest of exactly what it changed (files with
+  pre-install backups and SHA-256 checksums, login shell, added groups, enabled
+  services, udev rule, gsettings baseline, created system/user paths, and the
+  package delta). `uninstall.sh` reverses precisely that and nothing else:
+  restores overwritten files/symlinks, reverts the shell/groups/services/theme,
+  and removes only installer-added packages — never packages that existed
+  before, and only orphaned dependencies the installer itself pulled in. Files
+  edited after install are checksum-detected and skipped unless `--force`.
+  Supports `--dry-run`, `--list`, `--id`, `--keep-packages`. On NixOS it rolls
+  back to the previous system generation (profile switch, flake-compatible) and
+  cleans up the Home Manager dotfiles.
+
+
 ## [1.1.0] - 2026-07-13
 
 ### Added
@@ -191,7 +209,8 @@ Dunst, Kitty, lock screen, fonts, volume keys, first-boot greeter).
 - `psmisc`/`procps` installed explicitly on Debian (`killall`/`pgrep` are
   required by the Polybar launcher and theme switcher).
 
-[unreleased]: https://github.com/zhafrandzaky/my-i3wm-x11/compare/v1.1.0...HEAD
+[unreleased]: https://github.com/zhafrandzaky/my-i3wm-x11/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/zhafrandzaky/my-i3wm-x11/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/zhafrandzaky/my-i3wm-x11/compare/v1.0.2...v1.1.0
 [1.0.2]: https://github.com/zhafrandzaky/my-i3wm-x11/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/zhafrandzaky/my-i3wm-x11/compare/v1.0.0...v1.0.1
