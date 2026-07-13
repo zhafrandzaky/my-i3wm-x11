@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Debian installer for the i3wm-x11 dotfiles.
 # Run directly or via the root install.sh dispatcher.

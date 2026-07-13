@@ -1,8 +1,8 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 CACHE_FILE="/tmp/weather_cache"
 CACHE_TIMEOUT=900
-CITY_FILE="$HOME/.config/i3/scripts/.weather_city"
+CITY_FILE="$HOME/.local/state/i3wm-x11/weather_city"
 CITY=""
 
 if [ -f "$CITY_FILE" ]; then

@@ -1,6 +1,6 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-THEME_COLORS="$HOME/.config/i3/themes/current/colors.ini"
+THEME_COLORS="$HOME/.local/state/i3wm-x11/themes/current/colors.ini"
 ACCENT=$(grep '^primary =' "$THEME_COLORS" | awk '{print $3}')
 ALERT=$(grep '^alert =' "$THEME_COLORS" | awk '{print $3}')
 FOREGROUND=$(grep '^foreground =' "$THEME_COLORS" | awk '{print $3}')

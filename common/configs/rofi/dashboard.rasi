@@ -3,7 +3,7 @@ configuration {
     show-icons: false;
 }
 
-@import "~/.config/i3/themes/current/rofi.rasi"
+@import "~/.local/state/i3wm-x11/themes/current/rofi.rasi"
 
 window {
     transparency: "real";

@@ -6,7 +6,7 @@ import sys
 import shutil
 
 def generate_theme(image_path):
-    theme_dir = os.path.expanduser("~/.config/i3/themes/pywal-custom")
+    theme_dir = os.path.expanduser("~/.local/state/i3wm-x11/themes/pywal-custom")
     os.makedirs(theme_dir, exist_ok=True)
     
     target_img = os.path.join(theme_dir, "wallpaper.jpg")

@@ -1,6 +1,6 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-THEME_DIR=$(readlink -f ~/.config/i3/themes/current)
+THEME_DIR=$(readlink -f ~/.local/state/i3wm-x11/themes/current)
 CUSTOM_DIR="$HOME/Wallpapers"
 ROFI_CONF="$HOME/.config/rofi/wallpaper.rasi"
 

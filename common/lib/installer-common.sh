@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Shared installer functions used by arch/install.sh and debian/install.sh.
 # Callers must set (before sourcing):
@@ -127,7 +127,9 @@ preflight_checks() {
 
     log "Checking sudo access..."
     if ! sudo -v; then
-        error "Sudo access required for system configuration."
+        # Common on Debian text-installer runs where a root password was set:
+        # the created user is not in the sudo group.
+        error "Sudo access required. If your user lacks sudo, run as root: usermod -aG sudo $USER  (then log out and back in)."
     fi
     # Keep sudo alive
     while true; do sudo -n true; sleep 60; kill -0 "$$" || exit; done 2>/dev/null &
@@ -153,9 +155,10 @@ deploy_all_configs() {
     # Deploy Zshrc
     deploy_config "$COMMON_DIR/.zshrc" "$HOME/.zshrc"
 
-    # Deploy i3 Scripts & Themes
+    # Deploy i3 Scripts, Themes & shared runtime libraries
     deploy_config "$COMMON_DIR/scripts" "$HOME/.config/i3/scripts"
     deploy_config "$COMMON_DIR/themes" "$HOME/.config/i3/themes"
+    deploy_config "$COMMON_DIR/lib" "$HOME/.config/i3/lib"
 }
 
 setup_wallpapers() {

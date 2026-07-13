@@ -1,6 +1,6 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-ACCENT=$(grep '^primary =' "$HOME/.config/i3/themes/current/colors.ini" | awk '{print $3}')
+ACCENT=$(grep '^primary =' "$HOME/.local/state/i3wm-x11/themes/current/colors.ini" | awk '{print $3}')
 if [ -z "$ACCENT" ]; then ACCENT="#CBA6F7"; fi
 
 ROFI_CONFIG="$HOME/.config/rofi/config.rasi"

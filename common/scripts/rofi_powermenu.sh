@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 ROFI_THEME="$HOME/.config/rofi/powermenu.rasi"
 

@@ -9,7 +9,7 @@ configuration {
     drun-display-format: "{name}";
 }
 
-@import "~/.config/i3/themes/current/rofi.rasi"
+@import "~/.local/state/i3wm-x11/themes/current/rofi.rasi"
 
 window {
     width: 450px;

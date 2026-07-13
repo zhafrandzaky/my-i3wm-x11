@@ -1,7 +1,11 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 killall -q polybar
 while pgrep -u $UID -x polybar >/dev/null; do sleep 1; done
+
+# Ensure theme state exists (first boot) before polybar reads colors.ini
+source "$HOME/.config/i3/lib/paths.sh"
+i3wm_seed_state
 
 # Detect the active network interface (default route) for the traffic module
 POLYBAR_IFACE=$(ip route show default 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i=="dev"){print $(i+1); exit}}')

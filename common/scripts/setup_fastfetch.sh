@@ -1,26 +1,18 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-CONFIG_DIR="$HOME/.config/fastfetch"
-PRESET_DIR="$CONFIG_DIR/presets"
-ART_DIR="$CONFIG_DIR/art"
+PRESET_DIR="$HOME/.local/state/i3wm-x11/fastfetch/presets"
 
 echo "Generating Fastfetch Resources..."
 
+# Only presets are generated (into state). The art images ship in the repo and
+# are deployed alongside the other configs (~/.config/fastfetch/art), so this
+# script must not create that directory — on NixOS it is a read-only store
+# symlink and an mkdir here would make Home Manager refuse to link it.
 mkdir -p "$PRESET_DIR"
-mkdir -p "$ART_DIR"
 
-# Pick the ASCII logo matching the running distro
-DISTRO_ID=""
-if [ -f /etc/os-release ]; then
-    DISTRO_ID=$(. /etc/os-release; echo "$ID")
-fi
-
-case "$DISTRO_ID" in
-    arch)   LOGO="arch_small" ;;
-    debian) LOGO="debian_small" ;;
-    ubuntu) LOGO="ubuntu_small" ;;
-    *)      LOGO="" ;;
-esac
+# Pick the ASCII logo matching the running distro (shared library)
+source "$HOME/.config/i3/lib/distro.sh"
+LOGO=$(distro_fastfetch_logo)
 
 if [ -n "$LOGO" ]; then
     LOGO_SOURCE="\"source\": \"$LOGO\","

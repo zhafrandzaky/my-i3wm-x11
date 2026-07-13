@@ -21,11 +21,14 @@ tmp/
 temp/
 dotfiles_backup_*
 
-# Runtime artifacts written into the repo when installed with --link (symlink mode)
-**/.weather_city
-common/scripts/lock_colors.rc
-common/themes/current
-common/themes/pywal-custom/
+# Symlinks created inside the repo when installed with --link (symlink mode)
 common/configs/i3/scripts
 common/configs/i3/themes
-common/configs/i3/.setup_done
+common/configs/i3/lib
+
+# Nix build artifacts
+result
+result-*
+
+# Wizard output (generated example host config)
+nixos-example/

@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-07-13
+
+### Added
+
+- First-class **NixOS support** (`nixos/`): a flake exposing
+  `nixosModules.default` (X11/i3 session, PipeWire, NetworkManager,
+  Bluetooth, fonts, PAM-wired i3lock-color, backlight udev rule) and
+  `homeManagerModules.dotfiles` (packages incl. `polybarFull`, the shared
+  `common/` configs deployed as read-only store symlinks, polkit agent user
+  service, declarative GTK theming). Fully declarative: no imperative
+  installs, no source builds, generations cover the entire desktop.
+- NixOS integration wizard (`nixos/install.sh`): inspects the running system
+  (flakes, display manager, configuration style), asks a few questions, and
+  generates a ready host configuration in `./nixos-example/` — it never
+  writes outside the working directory.
+- Shared runtime libraries: `common/lib/distro.sh` (distro facts: family,
+  logo glyph, fastfetch logo, update backend incl. a flake-aware NixOS
+  update ladder honoring `$NH_FLAKE`/`$FLAKE`) and `common/lib/paths.sh`
+  (XDG state contract + first-run theme seeding).
+- NixOS branding: launcher glyph, fastfetch logo, and Starship prompt symbol.
+
+### Changed
+
+- **XDG state separation**: everything the desktop writes at runtime (active
+  theme, pywal themes, weather city, lock colors, setup flag, generated
+  fastfetch presets) moved from `~/.config` into `~/.local/state/i3wm-x11/`.
+  Configuration files are now never mutated; the dunst theme is applied via a
+  `dunstrc.d/50-theme.conf` drop-in instead of rewriting `dunstrc`, and the
+  functionally inert Starship palette rewrite was removed.
+- All scripts use `#!/usr/bin/env bash` (required on NixOS, no-op elsewhere).
+- `distro_icon.sh`, `updates.sh`, `setup_fastfetch.sh`, and `.zshrc` consume
+  the shared distro library instead of carrying their own detection.
+- Arch installer only enables NetworkManager when no other network-management
+  service (systemd-networkd, iwd, dhcpcd, connman) is enabled, protecting
+  `archinstall`-provisioned systems from interface ownership races.
+- Sudo preflight failure now explains how to add the user to the sudo group
+  (common on Debian text-installer systems with a root password).
+
 ## [1.0.2] - 2026-07-12
 
 ### Fixed
@@ -153,7 +191,8 @@ Dunst, Kitty, lock screen, fonts, volume keys, first-boot greeter).
 - `psmisc`/`procps` installed explicitly on Debian (`killall`/`pgrep` are
   required by the Polybar launcher and theme switcher).
 
-[unreleased]: https://github.com/zhafrandzaky/my-i3wm-x11/compare/v1.0.2...HEAD
+[unreleased]: https://github.com/zhafrandzaky/my-i3wm-x11/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/zhafrandzaky/my-i3wm-x11/compare/v1.0.2...v1.1.0
 [1.0.2]: https://github.com/zhafrandzaky/my-i3wm-x11/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/zhafrandzaky/my-i3wm-x11/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/zhafrandzaky/my-i3wm-x11/releases/tag/v1.0.0

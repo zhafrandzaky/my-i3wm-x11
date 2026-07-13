@@ -1,9 +1,9 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-ACCENT=$(grep '^primary =' "$HOME/.config/i3/themes/current/colors.ini" | awk '{print $3}')
+ACCENT=$(grep '^primary =' "$HOME/.local/state/i3wm-x11/themes/current/colors.ini" | awk '{print $3}')
 if [ -z "$ACCENT" ]; then ACCENT="#CBA6F7"; fi
 
-DISABLED_COLOR=$(grep '^disabled =' "$HOME/.config/i3/themes/current/colors.ini" | awk '{print $3}')
+DISABLED_COLOR=$(grep '^disabled =' "$HOME/.local/state/i3wm-x11/themes/current/colors.ini" | awk '{print $3}')
 if [ -z "$DISABLED_COLOR" ]; then DISABLED_COLOR="#6C7086"; fi
 
 STATUS=$(xset q | grep "DPMS is" | awk '{print $3}')

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Launch picom with the right backend for the GPU:
 #  - Real GPUs use the glx backend from picom.conf (blur, vsync).

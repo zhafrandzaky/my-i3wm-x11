@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Arch Linux installer for the i3wm-x11 dotfiles.
 # Run directly or via the root install.sh dispatcher.
@@ -83,7 +83,23 @@ install_pkg "Core System (WM, Utils & Rice Tools)" "$PKGS_CORE"
 # nm-applet, rofi_network, and blueman work on a fresh minimal install.
 if [ "$DRY_RUN" = false ]; then
     log "Enabling system services (NetworkManager, Bluetooth)..."
-    sudo systemctl enable NetworkManager.service 2>> "$LOG_FILE" || warn "Could not enable NetworkManager.service."
+    # Provenance guard (docs/DESIGN.md §5): archinstall systems may already run
+    # a different network manager; enabling NetworkManager alongside it causes
+    # interface ownership races. Enable only when nothing else manages the net.
+    CONFLICTING_NET=""
+    for svc in systemd-networkd.service iwd.service dhcpcd.service connman.service; do
+        if systemctl is-enabled "$svc" &> /dev/null; then
+            CONFLICTING_NET="$svc"
+            break
+        fi
+    done
+    if systemctl is-enabled NetworkManager.service &> /dev/null; then
+        log "NetworkManager already enabled."
+    elif [ -n "$CONFLICTING_NET" ]; then
+        warn "Not enabling NetworkManager: $CONFLICTING_NET manages networking. The Rofi network menu needs nmcli; switch manually if you want it: sudo systemctl disable $CONFLICTING_NET && sudo systemctl enable NetworkManager."
+    else
+        sudo systemctl enable NetworkManager.service 2>> "$LOG_FILE" || warn "Could not enable NetworkManager.service."
+    fi
     sudo systemctl enable bluetooth.service 2>> "$LOG_FILE" || warn "Could not enable bluetooth.service."
 fi
 

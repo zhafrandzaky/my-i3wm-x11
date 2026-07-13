@@ -1,8 +1,8 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 ROFI_THEME="$HOME/.config/rofi/dashboard.rasi"
 
-ACCENT=$(grep '^primary =' "$HOME/.config/i3/themes/current/colors.ini" | awk '{print $3}')
+ACCENT=$(grep '^primary =' "$HOME/.local/state/i3wm-x11/themes/current/colors.ini" | awk '{print $3}')
 if [ -z "$ACCENT" ]; then ACCENT="#CBA6F7"; fi
 
 ICON_PLAY=""

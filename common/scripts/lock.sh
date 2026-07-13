@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 killall rofi 2>/dev/null
 
@@ -7,7 +7,7 @@ killall i3lock-color 2>/dev/null
 
 sleep 0.3
 
-COLOR_CONFIG="$HOME/.config/i3/scripts/lock_colors.rc"
+COLOR_CONFIG="$HOME/.local/state/i3wm-x11/lock_colors.rc"
 
 if [ -f "$COLOR_CONFIG" ]; then
     source "$COLOR_CONFIG"

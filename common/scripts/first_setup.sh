@@ -1,8 +1,9 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-SETUP_FLAG="$HOME/.config/i3/.setup_done"
+SETUP_FLAG="$HOME/.local/state/i3wm-x11/setup_done"
 
 if [ -f "$SETUP_FLAG" ]; then exit 0; fi
+mkdir -p "$(dirname "$SETUP_FLAG")"
 
 sleep 3
 
@@ -23,9 +24,17 @@ for entry in "firefox:firefox.desktop" \
              "chromium:chromium.desktop"; do
     name="${entry%%:*}"
     desktop="${entry#*:}"
-    if [ -f "/usr/share/applications/$desktop" ] || [ -f "$HOME/.local/share/applications/$desktop" ]; then
-        BROWSER_LIST+="${name}\n"
-    fi
+    # Search the standard dirs plus NixOS profile locations
+    for appdir in /usr/share/applications \
+                  "$HOME/.local/share/applications" \
+                  /run/current-system/sw/share/applications \
+                  "/etc/profiles/per-user/$USER/share/applications" \
+                  "$HOME/.nix-profile/share/applications"; do
+        if [ -f "$appdir/$desktop" ]; then
+            BROWSER_LIST+="${name}\n"
+            break
+        fi
+    done
 done
 
 if [ -z "$BROWSER_LIST" ]; then
@@ -48,7 +57,7 @@ CITY_INPUT=$(zenity --entry \
     --text="Enter your City name for the Polybar weather widget:\n(e.g., Jakarta, Bandung, Tokyo)\n\nLeave blank to set it later via Right-Click on the widget." \
     --entry-text="")
 
-CITY_FILE="$HOME/.config/i3/scripts/.weather_city"
+CITY_FILE="$HOME/.local/state/i3wm-x11/weather_city"
 
 if [ -n "$CITY_INPUT" ]; then
     SAFE_CITY=$(echo "$CITY_INPUT" | sed 's/[^a-zA-Z0-9 ,-]//g' | sed 's/ /+/g')

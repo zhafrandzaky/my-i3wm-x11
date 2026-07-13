@@ -2,15 +2,16 @@
 
 ![Arch Linux](https://img.shields.io/badge/OS-Arch_Linux-33b7ff?style=for-the-badge&logo=archlinux&logoColor=white)
 ![Debian](https://img.shields.io/badge/OS-Debian-A81D33?style=for-the-badge&logo=debian&logoColor=white)
+![NixOS](https://img.shields.io/badge/OS-NixOS-5277C3?style=for-the-badge&logo=nixos&logoColor=white)
 ![Window Manager](https://img.shields.io/badge/WM-i3wm-black?style=for-the-badge&logo=i3&logoColor=white)
 ![Shell](https://img.shields.io/badge/Shell-Zsh-black?style=for-the-badge&logo=zsh&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)
 
-A highly modular, robust, and fully automated dotfiles deployment for **Arch Linux** and **Debian** (X11). This project transforms a base installation into a fully functional, aesthetically pleasing, and highly productive desktop environment with just one script — and the desktop looks and behaves identically on both distros.
+A highly modular, robust, and fully automated dotfiles deployment for **Arch Linux**, **Debian**, and **NixOS** (X11). This project transforms a base installation into a fully functional, aesthetically pleasing, and highly productive desktop environment with just one script — and the desktop looks and behaves identically on every supported distro, no matter how the OS was installed.
 
 ## Key Features
 
-- **Multi-Distro Monorepo:** One shared set of configs, scripts, and themes (`common/`) with distro-specific installers (`arch/`, `debian/`). The root `install.sh` auto-detects your distro.
+- **Multi-Distro Monorepo:** One shared set of configs, scripts, and themes (`common/`) with distro-specific backends (`arch/`, `debian/`, `nixos/`). The root `install.sh` auto-detects your distro at runtime — installation media or method never matters.
 - **Bulletproof Installer:** Automated deployment with safe backup mechanisms, `sudo` keep-alive, strict path resolution, and advanced flags (`--dry-run` and `--link` for developers).
 - **Dynamic Theming Engine:** Built-in Python script (`theme_builder.py`) using `pywal` to automatically generate system-wide color schemes (Polybar, Rofi, Dunst, i3) instantly from any wallpaper. Includes static themes (`Pro Dark`) out of the box.
 - **True Multi-Monitor Support:** Polybar automatically detects and scales across all connected displays seamlessly.
@@ -34,12 +35,19 @@ MY-I3WM-X11/
 │   └── install.sh    # Arch Linux installer (pacman + yay/AUR)
 ├── debian/
 │   └── install.sh    # Debian installer (apt + source builds for AUR-only tools)
+├── nixos/            # First-class NixOS support (declarative, flake-based)
+│   ├── flake.nix     # Exposes nixosModules.default + homeManagerModules.dotfiles
+│   ├── module.nix    # System module (X11/i3, PipeWire, NetworkManager, fonts, PAM)
+│   ├── home.nix      # Home Manager module (packages + dotfiles from common/)
+│   ├── example/      # Example host configuration
+│   └── install.sh    # Integration wizard (generates config; never touches /etc)
 ├── common/           # Everything shared between distros
 │   ├── configs/      # Base configurations (i3, polybar, rofi, dunst, kitty, picom, fastfetch)
 │   ├── scripts/      # The brain behind the rice (pywal generator, network, battery, etc.)
 │   ├── themes/       # Static theme bases (Pro-Dark) and Pywal targets
-│   ├── lib/          # Shared installer functions
+│   ├── lib/          # Shared libraries: installer functions, distro facts, state paths
 │   └── .zshrc        # Custom Zsh configuration (distro-aware aliases & plugin paths)
+├── docs/DESIGN.md    # Architecture & design decisions
 ├── CHANGELOG.md
 ├── LICENSE
 └── README.md
@@ -51,7 +59,7 @@ MY-I3WM-X11/
 
 Before running the installer, ensure you have:
 
-1. A fresh or existing **Arch Linux** or **Debian 12+ (Debian 13 "trixie" recommended)** installation (X11 environment).
+1. A fresh or existing **Arch Linux**, **Debian 12+ (Debian 13 "trixie" recommended)**, or **NixOS 26.05** installation (X11 environment). Any installation method works: manual, `archinstall`, any Debian installer flavor, NixOS graphical or minimal ISO.
 2. An active internet connection.
 3. A user account with `sudo` privileges (on Debian: make sure your user is in the `sudo` group).
 
@@ -69,12 +77,40 @@ cd my-i3wm-x11
 ./install.sh
 ```
 
-You can also run a distro installer directly:
+You can also run a distro backend directly:
 
 ```bash
 ./arch/install.sh     # Arch Linux
 ./debian/install.sh   # Debian
+./nixos/install.sh    # NixOS (integration wizard, see below)
 ```
+
+### NixOS
+
+NixOS support is fully declarative — nothing is installed imperatively. On
+NixOS, `./install.sh` starts an **integration wizard** that inspects your
+system (flakes, display manager, config style), asks a few questions, and
+generates a ready-to-review host configuration in `./nixos-example/`. It
+never modifies `/etc/nixos` or `nix.conf`; you apply the result yourself:
+
+```bash
+sudo nixos-rebuild switch --flake ./nixos-example#<hostname>
+```
+
+Already have a flake? Skip the wizard and import the module directly:
+
+```nix
+inputs.i3wm-x11.url = "github:zhafrandzaky/my-i3wm-x11?dir=nixos";
+# then in your modules:
+#   imports = [ inputs.i3wm-x11.nixosModules.default ];
+#   services.i3wm-x11 = { enable = true; username = "you"; };
+```
+
+The theming engine (pywal, wallpaper manager, theme switcher) works exactly
+as on Arch/Debian: all runtime theme state lives in
+`~/.local/state/i3wm-x11/`, so your configs stay immutable and rebuilds never
+clobber your chosen theme. Rollbacks via NixOS generations cover the entire
+desktop provisioning.
 
 ### Advanced Installer Flags (For Developers)
 

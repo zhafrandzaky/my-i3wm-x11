@@ -14,7 +14,7 @@ default_floating_border pixel 1
 for_window [class="^.*"] border pixel 1
 
 # WINDOW COLORS
-include ~/.config/i3/themes/current/i3_colors
+include ~/.local/state/i3wm-x11/themes/current/i3_colors
 # GTK & APPS SETTINGS
 exec_always --no-startup-id gsettings set org.gnome.desktop.interface gtk-theme "Arc-Dark"
 exec_always --no-startup-id gsettings set org.gnome.desktop.interface icon-theme "Papirus-Dark"
@@ -30,7 +30,7 @@ exec --no-startup-id nm-applet
 exec --no-startup-id blueman-applet
 exec --no-startup-id xfce4-power-manager
 exec_always --no-startup-id ~/.config/i3/scripts/picom_launch.sh
-exec_always --no-startup-id feh --bg-fill ~/.config/i3/themes/current/wallpaper.jpg
+exec_always --no-startup-id feh --bg-fill ~/.local/state/i3wm-x11/themes/current/wallpaper.jpg
 exec_always --no-startup-id ~/.config/polybar/launch.sh
 exec_always --no-startup-id autotiling
 # first_setup

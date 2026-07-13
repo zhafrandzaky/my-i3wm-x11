@@ -94,6 +94,7 @@ format = "[ $symbol ]($style)"
 [os.symbols]
 Arch = "\uf303"
 Debian = "\uf306"
+NixOS = "\uf313"
 Ubuntu = "\uf31b"
 Linux = "\uf17c"
 Unknown = "\uf17c"

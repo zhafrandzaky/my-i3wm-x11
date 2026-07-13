@@ -1,9 +1,9 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 I3_CONF="$HOME/.config/i3/config"
 ROFI_THEME="$HOME/.config/rofi/config.rasi"
 
-ACCENT=$(grep '^primary =' "$HOME/.config/i3/themes/current/colors.ini" | awk '{print $3}')
+ACCENT=$(grep '^primary =' "$HOME/.local/state/i3wm-x11/themes/current/colors.ini" | awk '{print $3}')
 if [ -z "$ACCENT" ]; then ACCENT="#CBA6F7"; fi
 
 OUTPUT=$(awk '

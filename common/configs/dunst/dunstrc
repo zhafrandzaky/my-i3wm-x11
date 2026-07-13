@@ -51,8 +51,7 @@
     layer = overlay
     corner_radius = 8
 
-# ==THEME_START==
+    # Theme accents are overridden by dunstrc.d/50-theme.conf (theme_switcher)
     background = "#1E1E2EF2"
     foreground = "#CDD6F4"
     frame_color = "#CBA6F7"
-# ==THEME_END==

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Main entry point: detects the running distro and hands off to the
 # matching installer (arch/install.sh or debian/install.sh).
@@ -25,6 +25,7 @@ DISTRO=""
 case "$ID" in
     arch)   DISTRO="arch" ;;
     debian) DISTRO="debian" ;;
+    nixos)  DISTRO="nixos" ;;
     *)
         if [[ "$ID_LIKE" == *arch* ]]; then
             DISTRO="arch"
@@ -38,7 +39,7 @@ esac
 
 if [ -z "$DISTRO" ]; then
     echo -e "${RED}[ERROR]${NC} Unsupported distribution: '$ID'."
-    echo "Supported: Arch Linux (arch/install.sh) and Debian (debian/install.sh)."
+    echo "Supported: Arch Linux (arch/install.sh), Debian (debian/install.sh), NixOS (nixos/install.sh)."
     echo "You can run one of those installers directly at your own risk."
     exit 1
 fi
