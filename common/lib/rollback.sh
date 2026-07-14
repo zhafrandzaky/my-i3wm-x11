@@ -184,7 +184,42 @@ rollback_record_created_path() {
     printf '%s\t%s\n' "$path" "$owner" >> "$RB_JOURNAL/created_paths.tsv"
 }
 
-# rollback_finalize  — diff packages, assemble manifest.json, mark 'latest'.
+# Required top-level manifest fields (single source of truth for validation).
+RB_REQUIRED_FIELDS='["install_id","timestamp","distro","installer_version","backup_dir","metadata","shell","packages","services","groups","udev","gsettings","created_paths","files"]'
+
+# Print a hard rollback error to stderr and the install log (if any).
+_rb_fail() {
+    echo "[ROLLBACK-ERROR] $1" >&2
+    [ -n "${LOG_FILE:-}" ] && echo "[ROLLBACK-ERROR] $(date): $1" >> "$LOG_FILE"
+    return 0
+}
+
+# _rb_validate_manifest <file>  -> 0 if the file is a complete, valid manifest.
+# Checks: exists, non-empty, valid JSON, all required fields present, non-empty
+# install_id, and packages/files are the expected shapes.
+_rb_validate_manifest() {
+    local f="$1"
+    [ -f "$f" ] || { _rb_fail "manifest missing: $f"; return 1; }
+    [ -s "$f" ] || { _rb_fail "manifest is empty: $f"; return 1; }
+    if ! jq -e . "$f" >/dev/null 2>&1; then
+        _rb_fail "manifest is not valid JSON: $f"; return 1
+    fi
+    if ! jq -e --argjson req "$RB_REQUIRED_FIELDS" \
+            '. as $o | all($req[]; . as $k | $o | has($k))' "$f" >/dev/null 2>&1; then
+        _rb_fail "manifest is missing required fields: $f"; return 1
+    fi
+    if ! jq -e '(.install_id|type=="string" and length>0)
+                and (.packages.installed_by_us|type=="array")
+                and (.packages.all_added|type=="array")
+                and (.files|type=="array")' "$f" >/dev/null 2>&1; then
+        _rb_fail "manifest has malformed core fields: $f"; return 1
+    fi
+    return 0
+}
+
+# rollback_finalize  — diff packages, assemble+validate manifest.json, mark
+# 'latest'. Returns non-zero if the manifest could not be built or is invalid,
+# so the installer can abort instead of leaving a broken (un-rollbackable) state.
 rollback_finalize() {
     [ "${DRY_RUN:-false}" = true ] && return 0
     [ -z "${RB_JOURNAL:-}" ] && return 0
@@ -210,17 +245,43 @@ rollback_finalize() {
         mv "$tmp" "$RB_JOURNAL/files.tsv"
     fi
 
-    if command -v jq >/dev/null 2>&1; then
-        _rb_build_manifest_json
-        sha256sum "$RB_DIR/manifest.json" | cut -d' ' -f1 > "$RB_DIR/manifest.sha256"
+    # jq is mandatory for a usable manifest — never silently skip it.
+    if ! command -v jq >/dev/null 2>&1; then
+        _rb_fail "jq is not installed — cannot build the rollback manifest."
+        return 1
     fi
 
+    # Defensive: every --rawfile target must exist (rollback_begin creates them,
+    # but guard against a partially-initialized journal).
+    local jf
+    for jf in files.tsv services.tsv groups.txt shell.txt udev.tsv gsettings.tsv \
+              created_paths.tsv packages_installed.txt packages_all_installed.txt; do
+        [ -f "$RB_JOURNAL/$jf" ] || : > "$RB_JOURNAL/$jf"
+    done
+
+    # Build into a temp file, check jq's exit status, then validate before
+    # committing — a failed jq must never leave a truncated manifest in place.
+    local out="$RB_DIR/manifest.json.tmp" errf="$RB_DIR/manifest.err"
+    if ! _rb_build_manifest_json > "$out" 2> "$errf"; then
+        _rb_fail "manifest generation (jq) failed: $(tr '\n' ' ' < "$errf")"
+        rm -f "$out"; return 1
+    fi
+    if ! _rb_validate_manifest "$out"; then
+        _rb_fail "generated manifest failed validation; not installing it."
+        rm -f "$out"; return 1
+    fi
+    mv "$out" "$RB_DIR/manifest.json"
+    rm -f "$errf"
+    sha256sum "$RB_DIR/manifest.json" | cut -d' ' -f1 > "$RB_DIR/manifest.sha256"
     ln -sfn "$RB_DIR" "$ROLLBACK_ROOT/latest"
+    return 0
 }
 
+# Emits the manifest JSON to stdout. Returns jq's exit status so the caller can
+# detect failure. Every $var used in the program MUST have a matching --arg or
+# --rawfile binding (the v1.2.0 regression was a missing --rawfile pkgs_all_raw).
 _rb_build_manifest_json() {
     local m="$RB_JOURNAL/meta.txt"
-    # shellcheck disable=SC1090
     local install_id timestamp distro installer_version backup_dir login_shell_at_start
     install_id=$(grep '^install_id=' "$m" | cut -d= -f2-)
     timestamp=$(grep '^timestamp=' "$m" | cut -d= -f2-)
@@ -243,7 +304,8 @@ _rb_build_manifest_json() {
         --rawfile udev_raw "$RB_JOURNAL/udev.tsv" \
         --rawfile gsettings_raw "$RB_JOURNAL/gsettings.tsv" \
         --rawfile created_raw "$RB_JOURNAL/created_paths.tsv" \
-        --rawfile pkgs_raw "$RB_JOURNAL/packages_installed.txt" '
+        --rawfile pkgs_raw "$RB_JOURNAL/packages_installed.txt" \
+        --rawfile pkgs_all_raw "$RB_JOURNAL/packages_all_installed.txt" '
         def lines: split("\n") | map(select(length>0));
         def tsv($n): lines | map(split("\t")) | map(select(length>=$n));
         {
@@ -265,7 +327,7 @@ _rb_build_manifest_json() {
                     existed_before:(.[3]=="true"), is_symlink:(.[4]=="true"),
                     checksum_after:.[5]
                   }))
-        }' > "$RB_DIR/manifest.json"
+        }'
 }
 
 # ---------------------------------------------------------------------------

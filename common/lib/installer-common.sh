@@ -156,7 +156,7 @@ preflight_checks() {
         local rb_distro="unknown"
         command -v pacman >/dev/null 2>&1 && rb_distro="arch"
         command -v apt-get >/dev/null 2>&1 && rb_distro="debian"
-        rollback_begin "$rb_distro" "1.1.0" "$BACKUP_DIR"
+        rollback_begin "$rb_distro" "1.2.1" "$BACKUP_DIR"
         log "Rollback transaction: $RB_ID"
     fi
 }
@@ -259,9 +259,14 @@ apply_system_fixes() {
         log "Applying Default Theme (Pro-Dark)..."
         bash "$HOME/.config/i3/scripts/theme_switcher.sh" "pro-dark"
 
-        # Seal the rollback transaction: diff packages, write manifest.json.
+        # Seal the rollback transaction: diff packages, write + validate the
+        # manifest. Abort loudly if it fails — a silent broken manifest would
+        # make uninstall.sh a no-op that falsely reports success.
         log "Finalizing rollback transaction..."
-        rollback_finalize
+        if ! rollback_finalize; then
+            error "Rollback manifest generation FAILED. The desktop is installed, but uninstall.sh would not be able to undo it. Check $LOG_FILE and re-run, or report this. (Not printing success.)"
+        fi
+        log "Rollback manifest validated: $RB_DIR/manifest.json"
     else
         log "[DRY-RUN] Skipping permissions, udev rules, and shell changes."
     fi

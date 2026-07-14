@@ -7,6 +7,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-07-15
+
+### Fixed
+
+- **CRITICAL — v1.2.0 rollback regression**: the manifest builder referenced
+  `$pkgs_all_raw` without its `--rawfile` binding, so jq aborted at compile
+  time, `manifest.json` was written as an empty file, and `uninstall.sh`
+  silently restored nothing while printing "ROLLBACK COMPLETE". The binding is
+  fixed and the entire pipeline is now defensive: manifest generation checks
+  jq's exit status, builds to a temp file, and validates the result (non-empty,
+  valid JSON, all 14 required fields, well-typed core arrays) before moving it
+  into place; the installer aborts loudly if finalization fails; `uninstall.sh`
+  refuses to run on an invalid or incomplete manifest; and "ROLLBACK COMPLETE —
+  verified" is only printed when every restore step succeeded and a
+  post-restore verification (shell reverted, packages removed, created files
+  gone) passes.
+- Debian uninstall removed pre-existing packages: `installed_by_us` included
+  packages that already existed as dependencies but were promoted to "manually
+  installed" by `apt-get install` (e.g. `python3`), and removing them cascaded
+  onto their pre-existing reverse-dependencies (`apt-listchanges`,
+  `reportbug`). Promoted packages are now demoted back to automatic
+  (`apt-mark auto` / `pacman -D --asdeps`) instead of removed.
+- Debian orphan cleanup never ran: the simulated `apt-get -s autoremove
+  --purge` prints `Purg` lines, not `Remv`, so the scoped-cleanup loop saw
+  nothing. Additionally, jq — itself an installer package — was removed before
+  the cleanup and verification code read the manifest, so both silently
+  no-op'd; all manifest values consumed during or after package removal are
+  now read up front.
+- Debian uninstall left ~90 installer-pulled dependencies behind because
+  Recommends-links from kept packages made `autoremove` consider them needed;
+  remaining `all_added` packages are now purged directly (safe: nothing
+  pre-existing can depend on packages that did not exist before the install).
+- Empty installer-created parent directories (e.g. `~/.config/matplotlib`)
+  are pruned after their recorded file is removed (rmdir-safe, never touches
+  non-empty directories or shared roots).
+- Arch: yay/go bootstrap side-effect directories (`~/.config/yay`,
+  `~/.config/go`, `~/.cache/yay`) are recorded in the manifest and removed on
+  uninstall.
+- NixOS: wizard-config cleanup escalates to sudo for root-owned files left by
+  `sudo nixos-rebuild` and verifies removal instead of printing unconditional
+  success.
+
 ## [1.2.0] - 2026-07-14
 
 ### Added
@@ -209,7 +251,8 @@ Dunst, Kitty, lock screen, fonts, volume keys, first-boot greeter).
 - `psmisc`/`procps` installed explicitly on Debian (`killall`/`pgrep` are
   required by the Polybar launcher and theme switcher).
 
-[unreleased]: https://github.com/zhafrandzaky/my-i3wm-x11/compare/v1.2.0...HEAD
+[unreleased]: https://github.com/zhafrandzaky/my-i3wm-x11/compare/v1.2.1...HEAD
+[1.2.1]: https://github.com/zhafrandzaky/my-i3wm-x11/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/zhafrandzaky/my-i3wm-x11/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/zhafrandzaky/my-i3wm-x11/compare/v1.0.2...v1.1.0
 [1.0.2]: https://github.com/zhafrandzaky/my-i3wm-x11/compare/v1.0.1...v1.0.2

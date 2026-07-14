@@ -85,8 +85,19 @@ if [ "$DISTRO_FAMILY" = "nixos" ]; then
                 rm -rf "$f"   # directory populated with HM store symlinks
             fi
         done
-        rm -rf "$PWD/nixos-example" "$HOME/.local/state/i3wm-x11"
-        ok "Removed desktop dotfiles, wizard config, and runtime state."
+        # `sudo nixos-rebuild --flake` can leave root-owned files inside the
+        # wizard-generated repo (git objects, flake.lock), so a plain rm may
+        # silently fail. Escalate if needed and only report success when the
+        # paths are actually gone.
+        rm -rf "$PWD/nixos-example" "$HOME/.local/state/i3wm-x11" 2>/dev/null
+        [ -e "$PWD/nixos-example" ] && sudo rm -rf "$PWD/nixos-example"
+        [ -e "$HOME/.local/state/i3wm-x11" ] && sudo rm -rf "$HOME/.local/state/i3wm-x11"
+        if [ ! -e "$PWD/nixos-example" ] && [ ! -e "$HOME/.local/state/i3wm-x11" ]; then
+            ok "Removed desktop dotfiles, wizard config, and runtime state."
+        else
+            err "Could not fully remove nixos-example / runtime state — check permissions."
+            exit 1
+        fi
     elif [ "$DRY_RUN" = true ]; then
         info "[dry-run] Would run the two rollback commands above and remove nixos-example + runtime state."
     fi
@@ -115,10 +126,21 @@ if [ -z "$RB_TX" ] || [ ! -e "$RB_TX/manifest.json" ]; then
 fi
 MANIFEST="$RB_TX/manifest.json"
 
+# REFUSE to run on an invalid or incomplete manifest — restoring from a broken
+# manifest would silently do nothing while pretending to succeed (the v1.2.0
+# regression). _rb_validate_manifest checks non-empty + valid JSON + every
+# required field + well-formed core arrays.
+if ! _rb_validate_manifest "$MANIFEST"; then
+    err "The rollback manifest is invalid or incomplete: $MANIFEST"
+    err "Refusing to continue — an incomplete manifest cannot safely restore your system."
+    err "Your system was NOT modified. Inspect the manifest, or restore manually from the backup dir."
+    exit 1
+fi
+
 # Verify manifest integrity if a checksum was written.
 if [ -f "$RB_TX/manifest.sha256" ]; then
     if [ "$(sha256sum "$MANIFEST" | cut -d' ' -f1)" != "$(cat "$RB_TX/manifest.sha256")" ]; then
-        warn "Manifest checksum mismatch — it may have been edited. Proceeding cautiously."
+        warn "Manifest checksum mismatch — it may have been edited after install. Proceeding cautiously."
     fi
 fi
 
@@ -133,6 +155,27 @@ printf " │  Date   : %-24s│\n" "$(jq -r .timestamp "$MANIFEST")"
 echo " ╰──────────────────────────────────╯"
 echo -e "${NC}"
 [ "$DRY_RUN" = true ] && warn "DRY RUN — no changes will be made."
+
+# Track hard failures across all restore steps; "ROLLBACK COMPLETE" is only
+# printed if this stays 0. (User-modified files that are skipped are warnings,
+# not failures.)
+ROLLBACK_FAILURES=0
+fail_step() { err "$1"; ROLLBACK_FAILURES=$((ROLLBACK_FAILURES + 1)); }
+
+# After deleting an installer-created file, remove parent directories the
+# installer created for it that are now empty (e.g. ~/.config/matplotlib left
+# behind after matplotlibrc is removed). rmdir only succeeds on empty dirs, so
+# this can never delete a directory that still holds user data; we also stop at
+# well-known shared roots defensively.
+prune_empty_parents() {
+    local dir; dir=$(dirname "$1")
+    while [ -n "$dir" ] && [ "$dir" != "/" ] && [ "$dir" != "$HOME" ] \
+          && [ "$dir" != "$HOME/.config" ] && [ "$dir" != "$HOME/.local" ] \
+          && [ "$dir" != "$HOME/.local/share" ] && [ "$dir" != "$HOME/.local/state" ]; do
+        rmdir "$dir" 2>/dev/null || break
+        dir=$(dirname "$dir")
+    done
+}
 
 # ---------- 1/2. Files: detect post-install modification, then restore ----------
 echo -e "\n${CYAN}>>> RESTORING FILES${NC}"
@@ -165,6 +208,7 @@ while IFS=$'\t' read -r action path backup existed is_link recorded_sum; do
     else
         # "create" — the installer made it; remove it.
         run "rm -rf '$path'"
+        [ "$DRY_RUN" = false ] && prune_empty_parents "$path"
         ok "removed: $path"
     fi
 done < <(jq -r '.files[] | [.action,.path,.backup,(.existed_before|tostring),(.is_symlink|tostring),.checksum_after] | @tsv' "$MANIFEST")
@@ -240,25 +284,58 @@ done < <(jq -r '.udev[]? | [.path,(.existed_before|tostring)] | @tsv' "$MANIFEST
 # ---------- 8. Packages: remove only what the installer installed ----------
 echo -e "\n${CYAN}>>> RESTORING PACKAGES${NC}"
 mapfile -t PKGS < <(jq -r '.packages.installed_by_us[]?' "$MANIFEST")
+# jq is itself an installer package, so it is removed by the package step
+# below. Read EVERY manifest value that is consumed during or after package
+# removal now, while jq still exists — otherwise the scoped orphan cleanup and
+# the post-restore verification would silently see nothing (empty jq output)
+# and no-op while still reporting success.
+mapfile -t ALL_ADDED < <(jq -r '.packages.all_added[]?' "$MANIFEST")
+VERIFY_SHELL_CHANGED=$(jq -r '.shell.changed' "$MANIFEST")
+VERIFY_SHELL_BEFORE=$(jq -r '.shell.before' "$MANIFEST")
+mapfile -t VERIFY_CREATED_FILES < <(jq -r '.files[]? | select(.action=="create") | .path' "$MANIFEST")
+# Split installed_by_us into packages that are genuinely NEW on this system
+# (also in all_added -> safe to remove) and packages that PRE-EXISTED as
+# dependencies but were promoted to "manually installed" when the installer
+# ran `apt-get install`/`pacman -S` on them (e.g. python3, git, curl).
+# Removing a promoted package cascades onto its pre-existing reverse
+# dependencies (removing python3 rips out apt-listchanges and reportbug), so
+# promoted packages are demoted back to auto/asdeps instead of removed.
+mapfile -t REMOVE_PKGS < <(comm -12 \
+    <(printf '%s\n' "${PKGS[@]}" | sort -u) \
+    <(printf '%s\n' "${ALL_ADDED[@]}" | sort -u))
+mapfile -t DEMOTE_PKGS < <(comm -23 \
+    <(printf '%s\n' "${PKGS[@]}" | sort -u) \
+    <(printf '%s\n' "${ALL_ADDED[@]}" | sort -u))
 if [ "$KEEP_PACKAGES" = true ]; then
     info "--keep-packages: leaving ${#PKGS[@]} installer-installed packages in place."
 elif [ "${#PKGS[@]}" -eq 0 ]; then
     info "No packages recorded as installed by the installer."
 else
-    info "The installer added ${#PKGS[@]} packages. These will be removed (dependencies that are still needed are kept):"
-    printf '  %s\n' "${PKGS[@]}" | head -40
+    info "The installer added ${#REMOVE_PKGS[@]} packages — these will be removed."
+    [ "${#DEMOTE_PKGS[@]}" -gt 0 ] && \
+        info "${#DEMOTE_PKGS[@]} package(s) existed before install and were only marked manual — these are demoted back to automatic, NOT removed: ${DEMOTE_PKGS[*]}"
+    printf '  %s\n' "${REMOVE_PKGS[@]}" | head -40
     proceed=true
     if [ "$DRY_RUN" = false ] && [ "$FORCE" != true ] && [ -t 0 ]; then
         read -rp "Remove these packages? [y/N]: " a; [[ "$a" =~ ^[Yy]$ ]] || proceed=false
     fi
+    PKG_REMOVAL_ATTEMPTED=false
     if [ "$proceed" = true ]; then
+        PKG_REMOVAL_ATTEMPTED=true
         case "$DISTRO_FAMILY" in
             arch)
-                run "sudo pacman -Rns --noconfirm ${PKGS[*]}" \
-                    || warn "Some packages could not be removed (still required). Re-run or remove manually."
+                # Demote pre-existing packages back to dependency status first.
+                if [ "${#DEMOTE_PKGS[@]}" -gt 0 ]; then
+                    run "sudo pacman -D --asdeps ${DEMOTE_PKGS[*]}" \
+                        && ok "demoted to dependency: ${DEMOTE_PKGS[*]}"
+                fi
+                if [ "${#REMOVE_PKGS[@]}" -gt 0 ]; then
+                    run "sudo pacman -Rns --noconfirm ${REMOVE_PKGS[*]}" \
+                        || warn "Some packages could not be removed (still required). Re-run or remove manually."
+                fi
                 # Clean up orphaned dependencies the installer pulled in — but
-                # ONLY those, never a pre-existing orphan (scoped to all_added).
-                mapfile -t ALL_ADDED < <(jq -r '.packages.all_added[]?' "$MANIFEST")
+                # ONLY those, never a pre-existing orphan (scoped to all_added,
+                # which was read before jq itself was removed above).
                 if [ "${#ALL_ADDED[@]}" -gt 0 ] && [ "$DRY_RUN" = false ]; then
                     for _pass in 1 2 3; do
                         mapfile -t ORPHANS < <(comm -12 \
@@ -271,8 +348,53 @@ else
                 fi
                 ;;
             debian)
-                run "sudo apt-get remove --purge -y ${PKGS[*]}"
-                run "sudo apt-get autoremove --purge -y"
+                # Demote pre-existing packages back to automatic first, so
+                # they are never part of a removal transaction.
+                if [ "${#DEMOTE_PKGS[@]}" -gt 0 ]; then
+                    run "sudo apt-mark auto ${DEMOTE_PKGS[*]} > /dev/null" \
+                        && ok "demoted to automatic: ${DEMOTE_PKGS[*]}"
+                fi
+                if [ "${#REMOVE_PKGS[@]}" -gt 0 ]; then
+                    run "sudo apt-get remove --purge -y ${REMOVE_PKGS[*]}"
+                fi
+                # Direct scoped sweep: purge every remaining package the
+                # installer added. Nothing pre-existing can Depend on them
+                # (they did not exist at install time), so the cascade stays
+                # inside all_added. Without this, Recommends-links from kept
+                # packages make `autoremove` consider dozens of installer
+                # dependencies "still needed" forever.
+                if [ "$DRY_RUN" = false ]; then
+                    mapfile -t LEFTOVER < <(comm -12 \
+                        <(dpkg-query -f '${db:Status-Status} ${Package}\n' -W 2>/dev/null \
+                            | awk '$1=="installed"{print $2}' | sort -u) \
+                        <(printf '%s\n' "${ALL_ADDED[@]}" | sort -u))
+                    if [ "${#LEFTOVER[@]}" -gt 0 ]; then
+                        sudo apt-get purge -y "${LEFTOVER[@]}" >/dev/null 2>&1 \
+                            && ok "purged ${#LEFTOVER[@]} remaining installer-pulled packages" \
+                            || warn "could not purge some installer-pulled leftovers: ${LEFTOVER[*]:0:5} ..."
+                    fi
+                fi
+                # Clean up orphaned dependencies the installer pulled in — but
+                # ONLY those, never a package that pre-existed the install.
+                # A blanket `apt-get autoremove` is unscoped: it purges every
+                # orphan on the system, including pre-existing auto-installed
+                # packages (e.g. apt-listchanges, reportbug), violating the
+                # "never remove pre-existing packages" contract. Instead we
+                # intersect apt's own autoremove candidates with all_added
+                # (read before jq itself was removed above).
+                if [ "${#ALL_ADDED[@]}" -gt 0 ] && [ "$DRY_RUN" = false ]; then
+                    for _pass in 1 2 3; do
+                        # Simulated removals print "Remv", simulated purges
+                        # print "Purg" — match both or the loop sees nothing.
+                        mapfile -t ORPHANS < <(comm -12 \
+                            <(sudo apt-get -s autoremove --purge 2>/dev/null \
+                                | awk '/^(Remv|Purg) /{print $2}' | sort -u) \
+                            <(printf '%s\n' "${ALL_ADDED[@]}" | sort -u))
+                        [ "${#ORPHANS[@]}" -eq 0 ] && break
+                        sudo apt-get purge -y "${ORPHANS[@]}" 2>/dev/null || break
+                        ok "removed installer-pulled orphans: ${ORPHANS[*]}"
+                    done
+                fi
                 ;;
             *) warn "Unknown distro; skipping package removal." ;;
         esac
@@ -289,9 +411,57 @@ if [ "$DRY_RUN" = false ]; then
 fi
 ok "runtime theme/state cleared (rollback records kept in ~/.local/state/i3wm-x11/rollback)"
 
-echo -e "\n${GREEN}"
-echo "   ROLLBACK COMPLETE"
-[ "$MODIFIED_ANY" = true ] && echo "   (some files were modified after install; see warnings above)"
-echo "   Original configs backup: $BACKUP_DIR"
-echo "   Log out / reboot for shell and group changes to take full effect."
-echo -e "${NC}"
+# ---------- 10. Post-restore verification (defensive) ----------
+# Confirm the rollback actually took effect. Silence here previously masked a
+# no-op; now we assert the observable end state matches the manifest's intent.
+if [ "$DRY_RUN" = false ]; then
+    echo -e "\n${CYAN}>>> VERIFYING ROLLBACK${NC}"
+    # (a) login shell reverted. Uses values captured before jq was removed.
+    if [ "$VERIFY_SHELL_CHANGED" = true ]; then
+        want="$VERIFY_SHELL_BEFORE"
+        got=$(getent passwd "$USER" | cut -d: -f7)
+        [ "$got" = "$want" ] && ok "shell is $got" || fail_step "shell is $got, expected $want"
+    fi
+    # (b) installer packages removed (unless we deliberately kept them / skipped)
+    if [ "$KEEP_PACKAGES" != true ] && [ "${PKG_REMOVAL_ATTEMPTED:-false}" = true ]; then
+        still=0
+        for p in "${REMOVE_PKGS[@]}"; do
+            case "$DISTRO_FAMILY" in
+                arch)   pacman -Qq "$p" &>/dev/null && still=$((still+1)) ;;
+                debian) dpkg -s "$p" &>/dev/null && still=$((still+1)) ;;
+            esac
+        done
+        [ "$still" -eq 0 ] && ok "all ${#REMOVE_PKGS[@]} installer packages removed (${#DEMOTE_PKGS[@]} pre-existing demoted, kept)" \
+            || fail_step "$still installer package(s) still present"
+    fi
+    # (c) recorded 'create' files that were not user-modified should be gone.
+    # Uses the create-path list captured before jq was removed.
+    leftover=0
+    for path in "${VERIFY_CREATED_FILES[@]}"; do
+        [ -z "$path" ] && continue
+        path="${path/#\~/$HOME}"
+        { [ -e "$path" ] || [ -L "$path" ]; } && leftover=$((leftover+1))
+    done
+    if [ "$leftover" -gt 0 ] && [ "$FORCE" = true ]; then
+        fail_step "$leftover installer-created path(s) still present after --force"
+    fi
+fi
+
+echo ""
+if [ "$ROLLBACK_FAILURES" -eq 0 ]; then
+    echo -e "${GREEN}"
+    echo "   ROLLBACK COMPLETE — verified"
+    [ "$MODIFIED_ANY" = true ] && echo "   (some files you modified after install were preserved; see warnings above)"
+    echo "   Original configs backup: $BACKUP_DIR"
+    echo "   Log out / reboot for shell and group changes to take full effect."
+    echo -e "${NC}"
+    exit 0
+else
+    echo -e "${RED}"
+    echo "   ROLLBACK INCOMPLETE — $ROLLBACK_FAILURES step(s) failed (see errors above)."
+    echo "   Your system may be partially restored. The manifest and backups are kept at:"
+    echo "     $RB_TX"
+    echo "     $BACKUP_DIR"
+    echo -e "${NC}"
+    exit 1
+fi

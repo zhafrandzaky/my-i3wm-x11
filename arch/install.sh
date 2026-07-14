@@ -39,6 +39,13 @@ show_header
 preflight_checks
 
 # AUR HELPER (YAY)
+# yay bootstrap + AUR builds create per-user side-effect dirs (yay config,
+# go build caches). Snapshot which ones already exist so only the ones WE
+# cause get recorded for rollback at the end of the install.
+_YAY_SIDE_DIRS=("$HOME/.config/yay" "$HOME/.config/go" "$HOME/.cache/yay" "$HOME/.cache/go" "$HOME/go")
+_YAY_SIDE_PRE=""
+for _d in "${_YAY_SIDE_DIRS[@]}"; do [ -e "$_d" ] && _YAY_SIDE_PRE="$_YAY_SIDE_PRE $_d"; done
+
 log "Checking AUR Helper (yay)..."
 if ! command -v yay &> /dev/null && [ "$DRY_RUN" = false ]; then
     echo -e "${YELLOW}Yay not found. Installing base-devel & yay...${NC}"
@@ -145,6 +152,16 @@ deploy_all_configs
 
 # INITIALIZE WALLPAPER DIRECTORY
 setup_wallpapers
+
+# Record yay/go side-effect dirs that appeared during this install so
+# uninstall.sh removes them (they are installer-caused, not user data).
+if [ "$DRY_RUN" = false ]; then
+    for _d in "${_YAY_SIDE_DIRS[@]}"; do
+        if [ -e "$_d" ] && ! echo "$_YAY_SIDE_PRE" | grep -q " $_d"; then
+            rollback_record_file "create" "$_d" "-" "false"
+        fi
+    done
+fi
 
 # SYSTEM HARDENING & FIXES
 apply_system_fixes "video,input,storage,audio"
